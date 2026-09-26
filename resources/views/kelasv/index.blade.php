@@ -34,6 +34,7 @@
                         <thead>
                             <tr>
                                 <th>#</th>
+                                <th>ID</th>
                                 <th>Nama Kelas</th>
                                 <th>Action</th>
                             </tr>
@@ -42,6 +43,7 @@
                         @forelse ($kelasnya as $p)
                             <tr>
                                 <td>{{$loop->iteration}}</td>
+                                <td>{{$p->id}} </td>
                                 <td>{{$p->nama_kelas}} </td>
                                 <td class="d-flex align-items-center" style="gap: 5px;">
                                     <a href="{{route('kelasnyas.edit',$p->id)}}" class="btn btn-sm btn-info"><i class="far fa-edit"></i></a>

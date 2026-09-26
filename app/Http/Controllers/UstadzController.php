@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use App\Models\Ustadz;
-use App\Models\Kelasnya;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use App\Http\Requests\StoreUstadzRequest;
 use App\Http\Requests\UpdateUstadzRequest;
+use App\Models\Kelasnya;
+use App\Models\SubKelas;
+use App\Models\User;
+use App\Models\Ustadz;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use App\Exports\UstadzExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class UstadzController extends Controller
 {
@@ -17,8 +21,14 @@ class UstadzController extends Controller
      */
     public function index()
     {
-        $ustadzs = Ustadz::all();
-        return view('ustadzs.index',compact('ustadzs'));
+        $ustadzs = Ustadz::with([
+            'user',
+            'subKelas'
+        ])
+        ->orderBy('id', 'desc')
+        ->get();
+
+        return view('ustadzs.index', compact('ustadzs'));
     }
 
     /**
@@ -26,44 +36,52 @@ class UstadzController extends Controller
      */
     public function create()
     {
-        $kelas = Kelasnya::all();
-        return view('ustadzs.create',compact('kelas'));
+        // $SubKelas = SubKelas::all();
+        $subKelas = SubKelas::orderBy('nama_sub_kelas')->get();
+        return view('ustadzs.create',compact('subKelas'));
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreUstadzRequest $request)
+   public function store(StoreUstadzRequest $request)
     {
         $validated = $request->validated();
 
-        // Simpan avatar jika ada
-        if($request->hasFile('avatar')){
-            $avatarPath = $request->file('avatar')->store('avatars','public');
-        }
+        DB::transaction(function () use ($request, $validated) {
 
-        // Buat user baru
-        $user = User::create([
-            'name'      => $validated['name'],
-            'email'     => $validated['email'],
-            'avatar'    => $avatarPath ?? null, // Jika tidak ada avatar, nilainya null
-            'password'  => Hash::make($validated['password']),
-        ]);
+            // Simpan avatar
+            if ($request->hasFile('avatar')) {
+                $avatarPath = $request->file('avatar')->store('avatars', 'public');
+            }
 
-        // Assign role 'ustadz' ke user
-        $user->assignRole('ustadz'); // Pastikan role 'ustadz' sudah ada di database
+            // Buat user
+            $user = User::create([
+                'name'      => $validated['name'],
+                'email'     => $validated['email'],
+                'avatar'    => $avatarPath ?? null,
+                'password'  => Hash::make($validated['password']),
+            ]);
 
-        // Simpan data ke tabel ustadzs
-        Ustadz::create([
-            'user_id'       => $user->id,
-            'kelas_id'      => $validated['kelas_id'],
-            'kelamin'       => $validated['kelamin'],
-            'tempat_lahir'  => $validated['tempat_lahir'],
-            'tgl_lahir'     => $validated['tgl_lahir'],
-            'no_hp'         => $validated['no_hp'],
-        ]);
+            // Assign role ustadz
+            $user->assignRole('ustadz');
 
-        return redirect()->route('ustadzs.index')->with('success', 'Data Ustadz berhasil disimpan!');
+            // Buat data ustadz
+            $ustadz = Ustadz::create([
+                'user_id'      => $user->id,
+                'kelamin'      => $validated['kelamin'],
+                'tempat_lahir' => $validated['tempat_lahir'],
+                'tgl_lahir'    => $validated['tgl_lahir'],
+                'no_hp'        => $validated['no_hp'],
+            ]);
+
+            // Simpan sub kelas yang diajar
+            $ustadz->subKelas()->sync($validated['sub_kelas_ids']);
+        });
+
+        return redirect()
+            ->route('ustadzs.index')
+            ->with('success', 'Data Ustadz berhasil disimpan!');
     }
 
     /**
@@ -77,58 +95,74 @@ class UstadzController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Ustadz $ustadz)
+   public function edit(Ustadz $ustadz)
     {
-        $kelas = Kelasnya::all();
-        return  view('ustadzs.edit',compact('ustadz','kelas'));
-    }
+        $subKelas = SubKelas::orderBy('nama_sub_kelas')->get();
 
+        // Ambil ID sub kelas yang saat ini diajar oleh ustadz
+        $selectedSubKelas = $ustadz->subKelas->pluck('id')->toArray();
+
+        return view('ustadzs.edit', compact('ustadz','subKelas','selectedSubKelas'));
+    }
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateUstadzRequest $request, Ustadz $ustadz)
+   public function update(UpdateUstadzRequest $request, Ustadz $ustadz)
     {
-        // Data sudah divalidasi di UpdateustadzRequest
         $validated = $request->validated();
 
-        // Update data User terkait
-        $userData = [
-            'name'  => $validated['name'],
-            'email' => $validated['email'],
-        ];
+        DB::transaction(function () use ($request, $validated, $ustadz) {
 
-        // Cek apakah password diisi, jika iya, update password
-        if ($request->filled('password')) {
-            $userData['password'] = bcrypt($validated['password']);
-        }
+            // Data user
+            $userData = [
+                'name'  => $validated['name'],
+                'email' => $validated['email'],
+            ];
 
-        // Cek apakah ada file avatar yang diunggah
-        if ($request->hasFile('avatar')) {
-            // Simpan avatar ke storage dan update path-nya
-            $avatarPath = $request->file('avatar')->store('avatars', 'public');
-            $userData['avatar'] = $avatarPath;
-        }
+            // Update password jika diisi
+            if ($request->filled('password')) {
+                $userData['password'] = bcrypt($validated['password']);
+            }
 
-        // Update data user yang terkait dengan ustadz
-        $ustadz->user->update($userData);
+            // Update avatar jika ada
+            if ($request->hasFile('avatar')) {
+                $avatarPath = $request->file('avatar')
+                    ->store('avatars', 'public');
 
-        // Simpan data ke tabel ustadzs
-        $ustadz->update([
-            'kelas_id'      => $validated['kelas_id'],
-            'kelamin'       => $validated['kelamin'],
-            'tempat_lahir'  => $validated['tempat_lahir'],
-            'tgl_lahir'     => $validated['tgl_lahir'],
-            'no_hp'         => $validated['no_hp'],
-        ]);
+                $userData['avatar'] = $avatarPath;
+            }
 
-        return redirect()->route('ustadzs.index')->with('success', 'Data ustadz berhasil diperbarui!');
+            // Update user
+            $ustadz->user->update($userData);
+
+            // Update data ustadz
+            $ustadz->update([
+                'kelamin'      => $validated['kelamin'],
+                'tempat_lahir' => $validated['tempat_lahir'],
+                'tgl_lahir'   => $validated['tgl_lahir'],
+                'no_hp'       => $validated['no_hp'],
+            ]);
+
+            // Update relasi sub kelas
+            $ustadz->subKelas()->sync($validated['sub_kelas_ids']);
+        });
+
+        return redirect()
+            ->route('ustadzs.index')
+            ->with('success', 'Data ustadz berhasil diperbarui!');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(Ustadz $ustadz)
     {
-        //
+        $ustadz->delete();
+
+        return redirect()
+            ->route('ustadzs.index')
+            ->with('success', 'Data ustadz berhasil dihapus.');
+    }
+
+    public function exportExcel()
+    {
+        return Excel::download(new UstadzExport,'data_ustadz.xlsx');
     }
 }

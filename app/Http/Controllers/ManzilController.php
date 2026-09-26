@@ -12,72 +12,101 @@ use App\Models\Manzil_history;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Log;
 
 class ManzilController extends Controller
 {
     public function index()
     {
-        // Cek jika yang login adalah ustadz
+        /*
+        |--------------------------------------------------------------------------
+        | Jika yang login adalah ustadz
+        |--------------------------------------------------------------------------
+        */
+
         if (auth()->user()->hasRole('ustadz')) {
-            // Ambil ustadz_id dari ustadz yang sedang login
-            $ustadz_id = auth()->user()->ustadz->id;
-    
-            // Ambil data manzil yang memiliki siswa dengan ustadz_id yang sama dengan ustadz.id
-            $manzils = manzil::whereHas('siswa', function($query) use ($ustadz_id) {
-                $query->where('ustadz_id', $ustadz_id);
-            })->get();
+
+            // Ambil data ustadz yang sedang login
+            $ustadz = auth()->user()->ustadz;
+
+            if (!$ustadz) {
+                abort(403, 'Data ustadz tidak ditemukan.');
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Ambil siswa yang menjadi tanggung jawab ustadz
+            |--------------------------------------------------------------------------
+            */
+
+            $manzils = Siswa::with([
+                'user',
+                'kelasnya',
+                'subKelas',
+            ])
+            ->where('ustadz_id', $ustadz->id)
+            ->orderBy('user_id')
+            ->get();
+
         } else {
-            // Jika bukan ustadz, ambil semua data manzil
-            $manzils = Manzil::all();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Admin melihat semua siswa
+            |--------------------------------------------------------------------------
+            */
+
+            $manzils = Siswa::with([
+                'user',
+                'kelasnya',
+                'subKelas',
+                'ustadz.user',
+            ])
+            ->orderBy('user_id')
+            ->get();
         }
 
-        return view('manzils.index',compact('manzils'));
+        return view(
+            'manzils.index',
+            compact('manzils')
+        );
     }
 
-    public function showManzilHistory($siswa_id)
+   public function showmanzilHistory($siswa_id)
     {
-       // Ambil data siswa, manzil dan histori terkait siswa tertentu
-        $siswa = Siswa::with(['user', 'kelasnya', 'manzils.manzilHistories.surat'])->findOrFail($siswa_id);
+        $siswa = Siswa::with([
+            'user',
+            'kelasnya',
+        ])->findOrFail($siswa_id);
 
-        // Mengambil semua manzil terkait siswa
-        $manzils = $siswa->manzils;
-        $manzil_id = $manzils->first()->id;
-          // Ambil data surat unik dari tabel madina
-        $surat = DB::table('madina')
-        ->select('sura_no', 'sura_name', DB::raw('MIN(id) as id'), DB::raw('COUNT(sura_no) as qty_sura'))
-        ->groupBy('sura_no', 'sura_name')
-        ->orderBy('sura_no')
+        $manzilHistories = Manzil_history::with([
+            'surat',
+            'ustadz.user',
+            'subKelas',
+        ])
+        ->where('siswa_id', $siswa_id)
+        ->orderByDesc('tgl_manzil')
+        ->orderByDesc('id')
         ->get();
-        
-        // Kirim data siswa dan manzil ke view
-        return view('manzils.history', compact('siswa','siswa_id', 'manzils','surat','manzil_id'));
-    }
-/* 
-    public function getSuratDetails($sura_no)
-    {
-        // Menjalankan query dengan Query Builder untuk mengambil data
+
         $surat = DB::table('madina')
-        ->selectRaw('
-            id AS suratId,
-            sura_no AS no_surat, 
-            jozz, 
-            sura_name,
-            COUNT(*) AS qty_sura,
-            MIN(page) AS start_page,
-            MAX(page) AS end_page
-        ')
-        ->where('sura_no', $sura_no)
-        ->groupBy('sura_no', 'sura_name', 'jozz','id')  // Menambahkan 'jozz' ke dalam GROUP BY
-        ->orderBy('sura_no')
-        ->first();
-    
-        // Cek apakah data ditemukan
-        if ($surat) {
-            return response()->json(['status' => 'success', 'data' => $surat]);
-        } else {
-            return response()->json(['status' => 'error', 'message' => 'Surat tidak ditemukan'], 404);
-        }
-    } */
+            ->select(
+                'sura_no',
+                'sura_name',
+                DB::raw('MIN(id) as id'),
+                DB::raw('COUNT(sura_no) as qty_sura')
+            )
+            ->groupBy('sura_no', 'sura_name')
+            ->orderBy('sura_no')
+            ->get();
+
+        return view('manzils.history', compact(
+            'siswa',
+            'siswa_id',
+            'manzilHistories',
+            'surat'
+        ));
+    }
 
     public function getSuratmanzil($sura_no)
     {
@@ -113,121 +142,375 @@ class ManzilController extends Controller
 
     public function store(Request $request)
     {
-        // Validasi input dari form
-        $request->validate([
+        $validated = $request->validate([
+            'siswa_id'      => 'required|integer|exists:siswas,id',
+            'ustadz_id'     => 'required|integer|exists:ustadzs,id',
+            'sub_kelas_id'  => 'required|integer|exists:sub_kelas,id',
+
             'tgl_manzil'     => 'required|date',
-            'surat_no'      => 'required|integer|exists:madina,sura_no', // pastikan surat_no ada di tabel madina
-            'dariayat'      => 'required|integer',
-            'sampaiayat'    => 'required|integer',
-            'nilai'         => 'required|integer',
+
+            'surat_no'      => 'required|integer|exists:madina,sura_no',
+
+            'dariayat'      => 'required|integer|min:1',
+            'sampaiayat'    => 'required|integer|min:1',
+
+            'nilai'         => 'required|integer|min:0',
+
             'keterangan'    => 'nullable|string',
-            'manzil_id'      => 'required|integer|exists:manzils,id', // pastikan manzil_id ada di tabel manzils
         ]);
 
-        // Ambil data surat berdasarkan surat_no (sura_no)
-        $surat = DB::table('madina')->where('sura_no', $request->input('surat_no'))->first();
+        /*
+        |--------------------------------------------------------------------------
+        | Pastikan siswa memang berada di sub kelas tersebut
+        |--------------------------------------------------------------------------
+        */
 
-        // Cek apakah surat ditemukan
-        if (!$surat) {
-            return redirect()->back()->withErrors(['surat_id' => 'Surat tidak ditemukan.']);
+        $siswa = Siswa::findOrFail($validated['siswa_id']);
+
+        if ((int) $siswa->sub_kelas_id !== (int) $validated['sub_kelas_id']) {
+            return redirect()
+                ->back()
+                ->withErrors([
+                    'sub_kelas_id' => 'Sub kelas tidak sesuai dengan siswa.'
+                ])
+                ->withInput();
         }
 
-        $siswa_id = $request->input('siswa_id'); // Asumsikan siswa_id dikirim dari form
+        /*
+        |--------------------------------------------------------------------------
+        | Pastikan ustadz memang mengajar sub kelas tersebut
+        |--------------------------------------------------------------------------
+        */
 
-        // Menyimpan data ke tabel manzil_histories
-        $manzilHistory = new manzil_history();
-        $manzilHistory->manzil_id = $request->input('manzil_id'); // Menambahkan manzil_id
-        $manzilHistory->surat_id = $surat->id; // Menambahkan surat_id
+        $ustadzMengajar = DB::table('ustadz_sub_kelas')
+            ->where('ustadz_id', $validated['ustadz_id'])
+            ->where('sub_kelas_id', $validated['sub_kelas_id'])
+            ->exists();
+
+        if (!$ustadzMengajar) {
+            return redirect()
+                ->back()
+                ->withErrors([
+                    'ustadz_id' => 'Ustadz tersebut tidak mengajar sub kelas ini.'
+                ])
+                ->withInput();
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Ambil data surat
+        |--------------------------------------------------------------------------
+        */
+
+        $surat = DB::table('madina')
+            ->where('sura_no', $validated['surat_no'])
+            ->first();
+
+        if (!$surat) {
+            return redirect()
+                ->back()
+                ->withErrors([
+                    'surat_no' => 'Surat tidak ditemukan.'
+                ])
+                ->withInput();
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Simpan manzil History
+        |--------------------------------------------------------------------------
+        */
+
+        $manzilHistory = new Manzil_history();
+
+        $manzilHistory->siswa_id = $validated['siswa_id'];
+        $manzilHistory->ustadz_id = $validated['ustadz_id'];
+        $manzilHistory->sub_kelas_id = $validated['sub_kelas_id'];
+
+        $manzilHistory->surat_id = $surat->id;
         $manzilHistory->surat_no = $surat->sura_no;
-        $manzilHistory->dariayat = $request->input('dariayat');
-        $manzilHistory->sampaiayat = $request->input('sampaiayat');
-        $manzilHistory->nilai = $request->input('nilai');
-        $manzilHistory->keterangan = $request->input('keterangan');
-        $manzilHistory->tgl_manzil = $request->input('tgl_manzil');
 
-        // Simpan ke database
+        $manzilHistory->dariayat = $validated['dariayat'];
+        $manzilHistory->sampaiayat = $validated['sampaiayat'];
+
+        $manzilHistory->tgl_manzil = $validated['tgl_manzil'];
+
+        $manzilHistory->nilai = $validated['nilai'];
+        $manzilHistory->keterangan = $validated['keterangan'] ?? null;
+
         $manzilHistory->save();
 
-        // Redirect ke halaman sebelumnya atau halaman yang sesuai
-        return redirect()->route('manzil-history.show', ['siswa_id' => $siswa_id])->with('success', 'Data berhasil disimpan');
+        /*
+        |--------------------------------------------------------------------------
+        | Kembali ke halaman history siswa
+        |--------------------------------------------------------------------------
+        */
+
+        return redirect()
+            ->route('manzil-history.show', [
+                'siswa_id' => $validated['siswa_id']
+            ])
+            ->with('success', 'Data manzil berhasil disimpan.');
     }
 
-    public function edit($id)
+    public function edit($siswa_id, $id)
     {
-        // Ambil data histori berdasarkan id
-        $history  = Manzil_history::findOrFail($id);
-        // dd($history);
-        // Ambil data surat terkait menggunakan query khusus
-        $surat = DB::table('madina')
-        ->selectRaw('
-            sura_no AS no_surat,
-            jozz,
-            sura_name,
-            COUNT(*) AS qty_sura,
-            MIN(page) AS start_page,
-            MAX(page) AS end_page
-        ')
-        ->where('sura_no', $history->surat_no)  // Menggunakan surat_no yang ada di history
-        ->groupBy('sura_no', 'sura_name', 'jozz')  // Kelompokkan berdasarkan sura_no, sura_name, dan jozz
-        ->orderBy('sura_no')
-        ->first();  // Mengambil satu hasil karena hanya satu surat yang dicari
-        // dd($surat);
-        
-        // Ambil data surat terkait
-        $suratList = DB::table('madina')
-                    ->select('sura_no', 'sura_name')
-                    ->groupBy('sura_no', 'sura_name')
-                    ->orderBy('sura_no')
-                    ->get();  // Ambil data surat terkait
-        // dd($suratList);
-        return view('manzils.edithistory', compact('history', 'suratList','surat'));
-    }
+        $manzilHistory = Manzil_history::findOrFail($id);
 
-    public function update(Request $request, $id)
-    {
-       
-        // Validasi data input
-        $request->validate([
-            'tgl_manzil'     => 'required|date',
-            'surat_no'      => 'required|integer|exists:madina,sura_no',
-            'dariayat'      => 'required|integer',
-            'sampaiayat'    => 'required|integer',
-            'nilai'         => 'required|integer',
-            'keterangan'    => 'nullable|string',
-        ]);
+        /*
+        |--------------------------------------------------------------------------
+        | Pastikan history memang milik siswa yang sedang dibuka
+        |--------------------------------------------------------------------------
+        */
 
-        // Ambil data history berdasarkan ID
-        $history = Manzil_history::findOrFail($id);
-
-        // Ambil data surat berdasarkan surat_no
-        $surat = DB::table('madina')->where('sura_no', $request->surat_no)->first();
-
-        // Cek apakah surat ditemukan
-        if (!$surat) {
-            return redirect()->back()->withErrors(['surat_id' => 'Surat tidak ditemukan.']);
+        if ((int) $manzilHistory->siswa_id !== (int) $siswa_id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Data manzil tidak sesuai dengan siswa.'
+            ], 403);
         }
 
-        
-        // Ambil data sabaq terkait history
-        $manzil = Manzil::findOrFail($history->manzil_id); // Mengambil manzil berdasarkan manzil_id yang ada pada history
+        /*
+        |--------------------------------------------------------------------------
+        | Ambil data surat berdasarkan surat_id
+        |--------------------------------------------------------------------------
+        */
 
-        // Ambil siswa_id dari manzil
-        $siswa_id = $manzil->siswa_id;
+        $surat = DB::table('madina')
+            ->select(
+                'id',
+                'sura_no',
+                'sura_name',
+                'jozz',
+                'page'
+            )
+            ->where('id', $manzilHistory->surat_id)
+            ->first();
 
-        // Update data history
-        $history->surat_id      = $surat->id;
-        $history->tgl_manzil    = $request->tgl_manzil;
-        $history->dariayat      = $request->dariayat;
-        $history->sampaiayat    = $request->sampaiayat;
-        $history->nilai         = $request->nilai;
-        $history->keterangan    = $request->keterangan;
+        /*
+        |--------------------------------------------------------------------------
+        | Daftar surat
+        |--------------------------------------------------------------------------
+        */
 
-        // Simpan perubahan
-        $history->save();
+        $suratList = DB::table('madina')
+            ->select(
+                'sura_no',
+                'sura_name'
+            )
+            ->groupBy(
+                'sura_no',
+                'sura_name'
+            )
+            ->orderBy('sura_no')
+            ->get();
 
-        // Redirect kembali dengan pesan sukses
-        return redirect()->route('manzil-history.show', ['siswa_id' => $siswa_id])->with('success', 'Data berhasil diperbarui.');
+        if (!$surat) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Data surat tidak ditemukan.'
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+
+            'data' => [
+                'id'          => $manzilHistory->id,
+                'siswa_id'    => $manzilHistory->siswa_id,
+                'ustadz_id'   => $manzilHistory->ustadz_id,
+                'sub_kelas_id'=> $manzilHistory->sub_kelas_id,
+                'tgl_manzil'   => $manzilHistory->tgl_manzil,
+                'surat_id'    => $manzilHistory->surat_id,
+                'surat_no'    => $manzilHistory->surat_no,
+                'dariayat'    => $manzilHistory->dariayat,
+                'sampaiayat'  => $manzilHistory->sampaiayat,
+                'nilai'       => $manzilHistory->nilai,
+                'keterangan'  => $manzilHistory->keterangan,
+            ],
+
+            'surat' => [
+                'id'          => $surat->id,
+                'sura_no'     => $surat->sura_no,
+                'sura_name'   => $surat->sura_name,
+                'jozz'        => $surat->jozz,
+                'page'        => $surat->page,
+            ],
+
+            'suratList' => $suratList,
+        ]);
     }
+
+        
+    public function update(Request $request, $id)
+    {
+        Log::info('Data update manzil History:', $request->all());
+
+        try {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Validasi
+            |--------------------------------------------------------------------------
+            */
+
+            $validated = $request->validate([
+                'tgl_manzil' => [
+                    'required',
+                    'date'
+                ],
+
+                'surat_no' => [
+                    'required',
+                    'integer',
+                    'exists:madina,sura_no'
+                ],
+
+                'dariayat' => [
+                    'required',
+                    'integer',
+                    'min:1'
+                ],
+
+                'sampaiayat' => [
+                    'required',
+                    'integer',
+                    'min:1'
+                ],
+
+                'nilai' => [
+                    'required',
+                    'integer',
+                    'min:0'
+                ],
+
+                'keterangan' => [
+                    'nullable',
+                    'string'
+                ],
+            ]);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Ambil history
+            |--------------------------------------------------------------------------
+            */
+
+            $history = Manzil_history::findOrFail($id);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Ambil surat berdasarkan sura_no
+            |--------------------------------------------------------------------------
+            */
+
+            $surat = DB::table('madina')
+                ->where('sura_no', $validated['surat_no'])
+                ->first();
+
+            if (!$surat) {
+
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Surat tidak ditemukan.'
+                ], 404);
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Update History
+            |--------------------------------------------------------------------------
+            */
+
+            $history->surat_id = $surat->id;
+            $history->surat_no = $surat->sura_no;
+
+            $history->dariayat = $validated['dariayat'];
+            $history->sampaiayat = $validated['sampaiayat'];
+
+            $history->nilai = $validated['nilai'];
+
+            $history->keterangan = $validated['keterangan'] ?? null;
+
+            $history->tgl_manzil = $validated['tgl_manzil'];
+
+            $history->save();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Response
+            |--------------------------------------------------------------------------
+            */
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Data manzil berhasil diperbarui.',
+
+                'redirect_url' => route(
+                    'manzil-history.show',
+                    [
+                        'siswa_id' => $history->siswa_id
+                    ]
+                )
+            ]);
+
+        } catch (\Throwable $e) {
+
+            Log::error('Gagal update manzil History', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Data gagal diperbarui. Silakan coba lagi.'
+            ], 500);
+        }
+    }
+
+    public function getHistory($id)
+    {
+        // Ambil data history berdasarkan ID
+        $history = Manzil_history::find($id);
+    
+        if (!$history) {
+            return response()->json(['status' => 'error', 'message' => 'History tidak ditemukan'], 404);
+        }
+    
+        // Ambil data surat berdasarkan surat_id yang ditemukan
+        $surat = DB::table('madina')
+                    ->where('id', $history->surat_id)  // Gunakan surat_id dari history untuk mencari surat
+                    ->first();
+    
+        // Ambil semua surat dari madina, urutkan berdasarkan sura_no
+        $suratList = DB::table('madina')
+                       ->select('sura_no', 'sura_name', DB::raw('MIN(id) as id'), DB::raw('COUNT(sura_no) as qty_sura'))
+                       ->groupBy('sura_no', 'sura_name')
+                       ->orderBy('sura_no')  // Urutkan berdasarkan sura_no
+                       ->get();  // Ambil semua surat dari tabel madina
+    
+        // Cek jika data ada
+        if ($history && $surat) {
+            // Mengembalikan data dalam format JSON
+            return response()->json([
+                'status' => 'success',
+                'data' => $history,
+                'surat' => $surat,  // Data surat yang terkait dengan history
+                'suratList' => $suratList  // Mengirimkan surat list yang terurut
+            ]);
+        }
+    
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Data tidak ditemukan'
+        ]);
+    }    
+
 
     public function destroy($siswa_id, $id)
     {
@@ -241,45 +524,153 @@ class ManzilController extends Controller
         return response()->json(['status' => 'success']);
     }
 
-    public function showSiswaHistory()
-    {
-        // Ambil data siswa yang sedang login
-        $siswa = Auth::user()->siswa; // Asumsikan ada relasi antara User dan Siswa
-        
-        // Ambil semua history sabaq yang terkait dengan siswa
-        $manzilHistories = $siswa->manzilHistories()->with('surat')->get();
+    public function showSiswaHistory(Request $request)
+        {
+            // Ambil siswa yang sedang login
+            $siswa = Auth::user()->siswa;
 
-        return view('manzils.siswa_history', compact('manzilHistories'));
-    }
+            /*
+            |--------------------------------------------------------------------------
+            | Filter tanggal
+            |--------------------------------------------------------------------------
+            */
+
+            $startDate = $request->input(
+                'start_date',
+                Carbon::now()->startOfMonth()->toDateString()
+            );
+
+            $endDate = $request->input(
+                'end_date',
+                Carbon::now()->toDateString()
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | History manzil
+            |--------------------------------------------------------------------------
+            */
+
+            $manzilHistories = Manzil_history::with([
+                'surat',
+                'ustadz.user',
+                'subKelas',
+            ])
+            ->where('siswa_id', $siswa->id)
+            ->whereBetween('tgl_manzil', [
+                $startDate,
+                $endDate
+            ])
+            ->orderByDesc('tgl_manzil')
+            ->orderByDesc('id')
+            ->paginate(10)
+            ->withQueryString();
+
+
+            return view(
+                'manzils.siswa_history',
+                compact(
+                    'siswa',
+                    'manzilHistories',
+                    'startDate',
+                    'endDate'
+                )
+            );
+        }
 
     public function laporan(Request $request)
-    {
-        $start_date = $request->input('start_date');
-        $end_date = $request->input('end_date');
-        
-        if (!$start_date && !$end_date) {
-            $start_date = Carbon::now()->startOfMonth()->toDateString();
-            $end_date = Carbon::now()->toDateString();
-        }
+        {
+            $start_date = $request->input('start_date');
+            $end_date = $request->input('end_date');
 
-        $start_date = Carbon::parse($start_date)->startOfDay();
-        $end_date = Carbon::parse($end_date)->endOfDay();
+            /*
+            |--------------------------------------------------------------------------
+            | Default tanggal: awal bulan sampai hari ini
+            |--------------------------------------------------------------------------
+            */
 
+            if (!$start_date && !$end_date) {
+                $start_date = Carbon::now()->startOfMonth()->toDateString();
+                $end_date = Carbon::now()->toDateString();
+            }
 
-        // Ambil data berdasarkan rentang tanggal yang dipilih
-        $manzils = Manzil_history::whereBetween('tgl_manzil',  [$start_date, $end_date])
-            ->with(['surat', 'manzil.siswa']) // Menyertakan data surat dan siswa
+            /*
+            |--------------------------------------------------------------------------
+            | Jika hanya salah satu tanggal yang diisi
+            |--------------------------------------------------------------------------
+            */
+
+            if (!$start_date) {
+                $start_date = $end_date;
+            }
+
+            if (!$end_date) {
+                $end_date = $start_date;
+            }
+
+            $start_date = Carbon::parse($start_date)->startOfDay();
+            $end_date = Carbon::parse($end_date)->endOfDay();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Ambil data manzil
+            |--------------------------------------------------------------------------
+            */
+
+            $manzils = Manzil_history::with([
+                'surat',
+                'siswa.user',
+                'ustadz.user',
+                'subKelas',
+            ])
+            ->whereBetween('tgl_manzil', [
+                $start_date->toDateString(),
+                $end_date->toDateString()
+            ])
+            ->orderBy('tgl_manzil')
+            ->orderBy('id')
             ->get();
-        
-        if ($request->has('pdf')) {
-            // Pastikan $start_date dan $end_date juga diteruskan ke view
-            $pdf = PDF::loadView('manzils.laporan_pdf', compact('manzils', 'start_date', 'end_date'))
-                        ->setPaper('a4', 'landscape'); // Menetapkan kertas PDF dan orientasi
-            return $pdf->download('laporan_manzil_' . $start_date . '_to_' . $end_date . '.pdf');
+
+            /*
+            |--------------------------------------------------------------------------
+            | Export PDF
+            |--------------------------------------------------------------------------
+            */
+
+            if ($request->has('pdf')) {
+
+                $pdf = PDF::loadView(
+                    'manzils.laporan_pdf',
+                    compact(
+                        'manzils',
+                        'start_date',
+                        'end_date'
+                    )
+                )->setPaper('a4', 'landscape');
+
+                return $pdf->download(
+                    'laporan_manzil_' .
+                    $start_date->format('Y-m-d') .
+                    '_to_' .
+                    $end_date->format('Y-m-d') .
+                    '.pdf'
+                );
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Tampilan laporan
+            |--------------------------------------------------------------------------
+            */
+
+            return view('manzils.laporan', compact(
+                'manzils',
+                'start_date',
+                'end_date'
+            ));
         }
 
-        return view('manzils.laporan', compact('manzils'));
-    }
     
     public function exportToExcel(Request $request)
     {

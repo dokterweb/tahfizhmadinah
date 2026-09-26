@@ -51,10 +51,10 @@
                 <tr>
                     <td>{{ $index + 1 }}</td>
                     <td>{{ \Carbon\Carbon::parse($history->tgl_sabqi)->format('d M Y') }}</td>
-                    <td>{{ $history->sabqi->siswa->user->name }}</td>
+                    <td>{{ $history->siswa->user->name }}</td>
                     <td>{{ $history->surat->sura_name }}</td>
                     <td>{{ $history->dariayat }} - {{ $history->sampaiayat }}</td>
-                    <td>{{ $history->sabqi->ustadz->user->name }}</td>
+                    <td>{{ $history->ustadz->user->name }}</td>
                     <td>{{ $history->keterangan }}</td>
                 </tr>
             @endforeach

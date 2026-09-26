@@ -26,19 +26,37 @@ class ManzilExport implements FromCollection, WithHeadings, WithStyles, WithColu
 
     public function collection()
     {
-        // Ambil data berdasarkan rentang tanggal yang diberikan
-        return Manzil_history::whereBetween('tgl_manzil', [$this->start_date, $this->end_date])
-            ->with(['surat', 'manzil.siswa']) // Menyertakan data surat dan siswa
+        return Manzil_history::whereBetween('tgl_manzil', [
+                $this->start_date,
+                $this->end_date
+            ])
+            ->with([
+                'surat',
+                'siswa.user',
+                'ustadz.user',
+                'subKelas',
+            ])
+            ->orderBy('tgl_manzil')
+            ->orderBy('id')
             ->get()
-            ->map(function($item) {
+            ->map(function ($item) {
+
                 return [
-                    'Tanggal'           => \Carbon\Carbon::parse($item->tgl_manzil)->format('d-M-Y'),
-                    'Nama Siswa'        => $item->manzil->siswa->user->name,
-                    'Nama Surat'        => $item->surat->sura_name,
-                    'Dari Ayat'         => $item->dariayat,
-                    'Sampai Ayat'       => $item->sampaiayat,
-                    'Ustadz Ustadzah'   => $item->manzil->ustadz->user->name,
-                    'Keterangan'        => $item->keterangan,
+                    'Tanggal' => \Carbon\Carbon::parse(
+                        $item->tgl_manzil
+                    )->format('d-M-Y'),
+
+                    'Nama Siswa' => $item->siswa?->user?->name ?? '-',
+
+                    'Nama Surat' => $item->surat?->sura_name ?? '-',
+
+                    'Dari Ayat' => $item->dariayat,
+
+                    'Sampai Ayat' => $item->sampaiayat,
+
+                    'Ustadz Ustadzah' => $item->ustadz?->user?->name ?? '-',
+
+                    'Keterangan' => $item->keterangan ?? '-',
                 ];
             });
     }

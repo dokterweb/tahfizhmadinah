@@ -31,7 +31,7 @@
 </head>
 <body>
 
-    <h2 class="heading">Laporan sabqi</h2>
+    <h2 class="heading">Laporan Sabaq</h2>
     <p>Tanggal: {{ \Carbon\Carbon::parse($start_date)->format('d F Y') }} - {{ \Carbon\Carbon::parse($end_date)->format('d F Y') }}</p>
 
     <table>
@@ -47,14 +47,14 @@
             </tr>
         </thead>
         <tbody>
-            @foreach ($sabqis as $index => $history)
+            @foreach ($sabaqs as $index => $history)
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    <td>{{ \Carbon\Carbon::parse($history->tgl_sabqi)->format('d M Y') }}</td>
-                    <td>{{ $history->sabqi->siswa->user->name }}</td>
+                    <td>{{ \Carbon\Carbon::parse($history->tgl_sabaq)->format('d M Y') }}</td>
+                    <td>{{ $history->siswa->user->name }}</td>
                     <td>{{ $history->surat->sura_name }}</td>
                     <td>{{ $history->dariayat }} - {{ $history->sampaiayat }}</td>
-                    <td>{{ $history->sabqi->ustadz->user->name }}</td>
+                    <td>{{ $history->ustadz->user->name }}</td>
                     <td>{{ $history->keterangan }}</td>
                 </tr>
             @endforeach

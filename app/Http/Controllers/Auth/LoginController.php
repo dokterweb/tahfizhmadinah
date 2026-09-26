@@ -2,39 +2,127 @@
 
 namespace App\Http\Controllers\Auth;
 
-use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use App\Models\Profilesekolah;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class LoginController extends Controller
 {
+
     public function index()
     {
-        return view('auth.login');
+        $profileSekolah = Profilesekolah::first();
+        return view('auth.login',compact('profileSekolah'));
     }
+
 
     public function handleLogin(Request $request)
     {
-        $credential = $request->validate([
-            'email' => 'required|email|exists:users,email',
-            'password' => 'required|string|min:8', // Set password minimum 8 karakter
-        ],[
-            'email.required'    => 'Email harus di isi',
-            'email.email'       => 'Email tidak valid',
-            'password.required' => 'Password harus di isi',
-            'password.min'      => 'Password harus memiliki minimal 8 karakter',
+        $credentials = $request->validate([
+            'email' => [
+                'required',
+                'email',
+                'exists:users,email',
+            ],
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+            ],
+        ], [
+            'email.required' => 'Email harus diisi.',
+            'email.email' => 'Email tidak valid.',
+            'email.exists' => 'Email tidak terdaftar.',
+            'password.required' => 'Password harus diisi.',
+            'password.min' => 'Password harus memiliki minimal 8 karakter.',
         ]);
-        
 
-        if (Auth::attempt($credential)) {
-            // dd('berhasil login');
-            $request->session()->regenerate();
-            return redirect()->intended('/dashboard');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Remember Me
+        |--------------------------------------------------------------------------
+        */
+
+        $remember = $request->boolean('remember');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Login
+        |--------------------------------------------------------------------------
+        */
+
+        if (!Auth::attempt($credentials, $remember)) {
+
+            return back()
+                ->withErrors([
+                    'email' => 'Email atau password tidak sesuai.',
+                ])
+                ->onlyInput('email');
         }
-        return back()->withErrors([
-            'email'     => 'Tidak sesuai dengan database',
-        ])->onlyInput('email');
-        
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Regenerate session
+        |--------------------------------------------------------------------------
+        */
+
+        $request->session()->regenerate();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | User login
+        |--------------------------------------------------------------------------
+        */
+
+        $user = Auth::user();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Redirect berdasarkan role
+        |--------------------------------------------------------------------------
+        */
+
+        if ($user->hasRole('admin')) {
+
+            return redirect()->route('dashboard');
+        }
+
+
+        if ($user->hasRole('ustadz')) {
+
+            return redirect()->route('ustadz.dashboard');
+        }
+
+
+        if ($user->hasRole('siswa')) {
+
+            return redirect()->route('siswa.dashboard');
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | User tidak memiliki role yang dikenali
+        |--------------------------------------------------------------------------
+        */
+
+        Auth::logout();
+
+        $request->session()->invalidate();
+
+        $request->session()->regenerateToken();
+
+        return back()
+            ->withErrors([
+                'email' => 'Role akun tidak memiliki akses ke dashboard.',
+            ])
+            ->onlyInput('email');
     }
 
     public function logout(Request $request)

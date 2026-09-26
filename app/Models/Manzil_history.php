@@ -9,16 +9,26 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Manzil_history extends Model
 {
     use HasFactory, SoftDeletes;
-    protected $fillable=['manzil_id', 'surat_id', 'surat_no', 'dariayat', 'sampaiayat', 'tgl_manzil', 'nilai', 'keterangan'];
+    protected $fillable=['siswa_id','ustadz_id','sub_kelas_id', 'surat_id', 'surat_no', 'dariayat', 'sampaiayat', 'tgl_manzil', 'nilai', 'keterangan'];
 
-      // Relasi dengan manzil
-      public function manzil()
-      {
-          return $this->belongsTo(Manzil::class, 'manzil_id', 'id');
-      }
+    public function siswa()
+    {
+        return $this->belongsTo(Siswa::class, 'siswa_id');
+    }
 
-      public function surat()
+    public function ustadz()
+    {
+        return $this->belongsTo(Ustadz::class, 'ustadz_id');
+    }
+
+    public function subKelas()
+    {
+        return $this->belongsTo(SubKelas::class, 'sub_kelas_id');
+    }
+    
+    public function surat()
     {
         return $this->belongsTo(Madina::class, 'surat_id');
     }
+ 
 }

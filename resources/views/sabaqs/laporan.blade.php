@@ -35,32 +35,34 @@
             <div class="row">
                 <div class="col-md-12">
                 @if($sabaqs->isNotEmpty())
-                <table id="paketTable" class="table table-bordered table-striped">
-                    <thead>
-                        <tr>
-                            <th>No.</th>
-                            <th>Tanggal Sabaq</th>
-                            <th>Nama Siswa</th>
-                            <th>Nama Surat</th>
-                            <th>Ayat</th>
-                            <th>Ustadz/Ustadzah</th>
-                            <th>Keterangan</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($sabaqs as $index => $history)
+                <div class="table-responsive p-2">
+                    <table id="paketTable" class="table table-bordered table-striped">
+                        <thead>
                             <tr>
-                                <td>{{ $index + 1 }}</td>
-                                <td>{{ \Carbon\Carbon::parse($history->tgl_sabaq)->format('d M Y') }}</td>
-                                <td>{{ $history->sabaq->siswa->user->name }}</td>
-                                <td>{{ $history->surat->sura_name }}</td>
-                                <td>{{ $history->dariayat }} - {{ $history->sampaiayat }}</td>
-                                <td>{{ $history->sabaq->ustadz->user->name }}</td>
-                                <td>{{ $history->keterangan }}</td>
+                                <th>No.</th>
+                                <th>Tanggal Sabaq</th>
+                                <th>Nama Siswa</th>
+                                <th>Nama Surat</th>
+                                <th>Ayat</th>
+                                <th>Ustadz/Ustadzah</th>
+                                <th>Keterangan</th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach($sabaqs as $index => $history)
+                                <tr>
+                                    <td>{{ $index + 1 }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($history->tgl_sabaq)->format('d M Y') }}</td>
+                                    <td>{{ $history->siswa->user->name }}</td>
+                                    <td>{{ $history->surat->sura_name }}</td>
+                                    <td>{{ $history->dariayat }} - {{ $history->sampaiayat }}</td>
+                                    <td>{{ $history->ustadz->user->name }}</td>
+                                    <td>{{ $history->keterangan }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
                 @else
                     <p>Data tidak ditemukan.</p>
                 @endif

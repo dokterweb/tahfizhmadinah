@@ -24,13 +24,13 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             <label >Kelas</label>
-                            <select class="form-control" name="kelas_id" id="kelas_id">
+                            <select class="form-control" name="sub_kelas_id" id="sub_kelas_id">
                                 <option value="">Pilih Kelas</option>
-                                @foreach ($kelas as $p)
-                                <option value="{{ $p->id }}" {{ $siswa->kelas_id == $p->id ? 'selected' : '' }}>{{ $p->nama_kelas }}</option>
+                                @foreach ($SubKelas as $p)
+                                <option value="{{ $p->id }}" {{ $siswa->sub_kelas_id == $p->id ? 'selected' : '' }}>{{ $p->nama_sub_kelas }}</option>
                                 @endforeach
                             </select>
-                            @error('kelas_id')
+                            @error('sub_kelas_id')
                                 <span class="text-danger">{{ $message }}</span>
                             @enderror
                         </div>
@@ -87,25 +87,7 @@
                             @enderror
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label >Nama Ayah</label>
-                            <input type="text" name="nama_ayah" class="form-control" value="{{$siswa->nama_ayah }}">
-                            @error('nama_ayah')
-                                <span class="text-danger">{{ $message }}</span>
-                            @enderror
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label >Nama Ibu</label>
-                            <input type="text" name="nama_ibu" class="form-control" value="{{$siswa->nama_ibu }}">
-                            @error('nama_ibu')
-                                <span class="text-danger">{{ $message }}</span>
-                            @enderror
-                        </div>
-                    </div>
-                    <div class="col-md-6">
+                   <div class="col-md-6">
                         <div class="form-group">
                             <label >No HP</label>
                             <input type="number" name="no_hp" class="form-control" value="{{$siswa->no_hp }}">
@@ -168,13 +150,13 @@
 <script>
     $(document).ready(function () {
         // Ketika Kelas dipilih
-        $('#kelas_id').change(function () {
-            var kelas_id = $(this).val();
+        $('#sub_kelas_id').change(function () {
+            var sub_kelas_id = $(this).val();
 
-            if (kelas_id) {
-                // Mengirim AJAX request untuk mendapatkan ustadz berdasarkan kelas_id
+            if (sub_kelas_id) {
+                // Mengirim AJAX request untuk mendapatkan ustadz berdasarkan sub_kelas_id
                 $.ajax({
-                    url: '/get-ustadz/' + kelas_id,  // URL AJAX
+                    url: '/get-ustadz/' + sub_kelas_id,  // URL AJAX
                     type: 'GET',
                     dataType: 'json',
                     success: function (data) {

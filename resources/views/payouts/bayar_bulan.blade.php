@@ -62,7 +62,8 @@
                                 @endif
                                 </td>
                                 <td>
-                                    <a href="#" target="_blank">Bukti</a>
+                                    <a href="{{ route('payouts.invoice', [$b->payment_id, $b->bulan_id]) }}" target="_blank">Bukti</a>
+
 
                                     {{-- untuk cetak pdf ,mengirimkan bulan_id dan siswa_id--}}
                                 </td>

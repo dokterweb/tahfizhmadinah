@@ -22,25 +22,25 @@
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label >Kelas</label>
-                            <select class="form-control" name="kelas_id" id="kelas_id">
-                                <option value="">Pilih Kelas</option>
-                                @foreach ($kelas as $p)
-                                <option value="{{ $p->id }}" {{ old('kelas_id') == $p->id ? 'selected' : '' }}>{{ $p->nama_kelas }}</option>
+                            <label>Sub Kelas</label>
+                            <select class="form-control" name="sub_kelas_id" id="sub_kelas_id">
+                                <option value="">Pilih Sub Kelas</option>
+                                @foreach ($SubKelas as $p)
+                                    <option value="{{ $p->id }}" {{ old('sub_kelas_id') == $p->id ? 'selected' : '' }}>
+                                        {{ $p->nama_sub_kelas }}
+                                    </option>
                                 @endforeach
                             </select>
-                            @error('kelas_id')
+                            @error('sub_kelas_id')
                                 <span class="text-danger">{{ $message }}</span>
                             @enderror
                         </div>
                     </div>
-                    <div class="col-md-6">
+                   <div class="col-md-6">
                         <div class="form-group">
-                            <label >Ustadz / Ustadzah</label>
+                            <label>Ustadz / Ustadzah</label>
                             <select class="form-control" name="ustadz_id" id="ustadz_id">
-                                @foreach ($ustadz as $p)
-                                <option value="{{ $p->id }}" {{ old('ustadz_id') == $p->id ? 'selected' : '' }}>{{ $p->user->name }}</option>
-                                @endforeach
+                                <option value="">Pilih Ustadz</option>
                             </select>
                             @error('ustadz_id')
                                 <span class="text-danger">{{ $message }}</span>
@@ -82,24 +82,6 @@
                             <label >Alamat</label>
                             <input type="text" name="alamat" class="form-control" value="{{ old('alamat') }}">
                             @error('alamat')
-                                <span class="text-danger">{{ $message }}</span>
-                            @enderror
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label >Nama Ayah</label>
-                            <input type="text" name="nama_ayah" class="form-control" value="{{ old('nama_ayah') }}">
-                            @error('nama_ayah')
-                                <span class="text-danger">{{ $message }}</span>
-                            @enderror
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label >Nama Ibu</label>
-                            <input type="text" name="nama_ibu" class="form-control" value="{{ old('nama_ibu') }}">
-                            @error('nama_ibu')
                                 <span class="text-danger">{{ $message }}</span>
                             @enderror
                         </div>
@@ -161,38 +143,62 @@
 @section('scripts')
 <script>
     $(document).ready(function () {
-        // Ketika Kelas dipilih
-        $('#kelas_id').change(function () {
-            var kelas_id = $(this).val();
 
-            if (kelas_id) {
-                // Mengirim AJAX request untuk mendapatkan ustadz berdasarkan kelas_id
-                $.ajax({
-                    url: '/get-ustadz/' + kelas_id,  // URL AJAX
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function (data) {
-                        // Kosongkan dropdown Ustadz
-                        $('#ustadz_id').empty();
-                        
-                        // Tambahkan option default
-                        $('#ustadz_id').append('<option value="">Pilih Ustadz</option>');
+        $('#sub_kelas_id').change(function () {
 
-                        // Loop dan tambahkan ustadz ke dropdown
-                        $.each(data, function (key, ustadz) {
-                            $('#ustadz_id').append('<option value="' + ustadz.id + '">' + ustadz.user.name + '</option>');
-                        });
-                    },
-                    error: function (xhr, status, error) {
-                        console.log('Terjadi kesalahan saat mengambil data ustadz: ' + error);
-                    }
-                });
-            } else {
-                // Jika tidak ada kelas yang dipilih, kosongkan dropdown Ustadz
-                $('#ustadz_id').empty();
-                $('#ustadz_id').append('<option value="">Pilih Ustadz</option>');
+            let subKelasId = $(this).val();
+
+            // Kosongkan dropdown ustadz
+            $('#ustadz_id').empty();
+
+            // Default option
+            $('#ustadz_id').append(
+                '<option value="">Pilih Ustadz</option>'
+            );
+
+            if (!subKelasId) {
+                return;
             }
+
+            $.ajax({
+                url: "{{ url('/get-ustadz') }}/" + subKelasId,
+                type: "GET",
+                dataType: "json",
+
+                success: function (data) {
+
+                    if (data.length === 0) {
+                        $('#ustadz_id').append(
+                            '<option value="">Belum ada ustadz untuk sub kelas ini</option>'
+                        );
+
+                        return;
+                    }
+
+                    $.each(data, function (key, ustadz) {
+
+                        $('#ustadz_id').append(
+                            '<option value="' + ustadz.id + '">' +
+                            ustadz.user.name +
+                            '</option>'
+                        );
+
+                    });
+                },
+
+                error: function (xhr) {
+
+                    console.log(xhr.responseText);
+
+                    $('#ustadz_id').empty();
+
+                    $('#ustadz_id').append(
+                        '<option value="">Gagal mengambil data ustadz</option>'
+                    );
+                }
+            });
         });
+
     });
 </script>
 @endsection

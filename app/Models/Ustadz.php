@@ -10,7 +10,7 @@ class Ustadz extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = ['user_id', 'kelas_id', 'nama_ustadz', 'kelamin', 'tempat_lahir', 'tgl_lahir', 'no_hp'];
+    protected $fillable = ['user_id', 'nama_ustadz', 'kelamin', 'tempat_lahir', 'tgl_lahir', 'no_hp'];
 
     public function user()
     {
@@ -19,6 +19,18 @@ class Ustadz extends Model
 
     public function kelasnya()
     {
-        return $this->belongsTo(Kelasnya::class, 'kelas_id');
+        return $this->hasOneThrough(
+            Kelasnya::class,
+            SubKelas::class,
+            'id',
+            'id',
+            'sub_kelas_id',
+            'kelas_id'
+        );
+    }
+
+   public function subKelas()
+    {
+        return $this->belongsToMany(SubKelas::class,'ustadz_sub_kelas','ustadz_id','sub_kelas_id');
     }
 }

@@ -7,9 +7,44 @@
         <div class="card-header">
             <a href="{{route('absensis.ustadzCreate')}}" class="btn btn-info"><i class="fas fa-plus-circle"></i> Tambah
             </a>
+        </div>
+        <div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" action="{{ route('absensis.ustadzIndex') }}">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="start_date">Dari Tanggal</label>
+                        <input type="date" name="start_date" id="start_date" class="form-control" value="{{ $startDate }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="end_date">Sampai Tanggal</label>
+                        <input type="date" name="end_date" id="end_date" class="form-control" value="{{ $endDate }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i>
+                                Tampilkan
+                            </button>
+                            <a href="{{ route('absensis.ustadzIndex') }}" class="btn btn-secondary">
+                                <i class="fas fa-sync-alt"></i>
+                                Reset
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
+        </form>
+    </div>
+    </div>
         <div class="card-body">
-            <table id="paketTable" class="table table-bordered table-striped">
+            <table class="table table-bordered table-striped">
                 <thead>
                     <tr>
                         <th>#</th>
@@ -43,7 +78,7 @@
                     <tr>
                         <td colspan="6" class="text-center">Tidak ada data absensi.</td>
                     </tr>
-                @endforelse
+                    @endforelse
                 </tbody>
             </table>
         </div>
@@ -54,11 +89,6 @@
 
 <!-- SweetAlert2 Script -->
 @section('scripts')
-<script>
-     $(document).ready(function () {
-          $('#paketTable').DataTable();
-        });
-</script>
     @if (session('success'))
     <script>
         Swal.fire({

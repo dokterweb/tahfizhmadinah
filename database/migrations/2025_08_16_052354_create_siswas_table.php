@@ -15,14 +15,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->on('users')->onDelete('cascade');
             $table->foreignId('ustadz_id')->constrained()->on('ustadzs')->onDelete('cascade');
-            $table->unsignedInteger('kelas_id');
-            $table->foreign('kelas_id')->references('id')->on('kelasnyas')->onDelete('cascade');
+            $table->unsignedInteger('sub_kelas_id');
+            $table->foreign('sub_kelas_id')->references('id')->on('sub_kelas')->cascadeOnUpdate()->restrictOnDelete();
             $table->enum('kelamin', ['laki-laki', 'perempuan']);
             $table->string('tempat_lahir');
             $table->date('tgl_lahir');
             $table->string('alamat');
-            $table->string('nama_ayah');
-            $table->string('nama_ibu');
             $table->string('no_hp');
             $table->softDeletes();
             $table->timestamps();

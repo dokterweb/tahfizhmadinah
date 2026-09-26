@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('ustadzs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->unsignedInteger('kelas_id');
-            $table->foreign('kelas_id')->references('id')->on('kelasnyas')->onDelete('cascade');
+            $table->unsignedInteger('sub_kelas_id')->nullable();
+            $table->foreign('sub_kelas_id')->references('id')->on('sub_kelas')->cascadeOnUpdate()->restrictOnDelete();
             $table->enum('kelamin', ['laki-laki', 'perempuan']); 
             $table->string('tempat_lahir');
             $table->date('tgl_lahir');

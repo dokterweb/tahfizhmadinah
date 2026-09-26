@@ -5,10 +5,17 @@
     
     <div class="card">
         <div class="card-header">
-        <a href="{{route('siswas.create')}}" class="btn btn-info"><i class="fas fa-plus-circle"></i> Tambah
-        </a>
+            <a href="{{route('siswas.create')}}" class="btn btn-info">
+                <i class="fas fa-plus-circle"></i> Tambah
+            </a>
+            <a href="{{ route('siswas.export.excel') }}" class="btn btn-success">
+                <i class="fas fa-file-excel"></i>Export Excel
+            </a>
+            <a href="{{ route('siswas.import.form') }}" class="btn btn-primary">
+                <i class="fas fa-file-import"></i>Import Excel
+            </a>
         </div>
-        <div class="card-body">
+        <div class="card-body table-responsive p-2">
             <table id="paketTable" class="table table-bordered table-striped">
                 <thead>
                     <tr>
@@ -17,7 +24,6 @@
                         <th>Nama Kelas</th>
                         <th>Nama Ustadz</th>
                         <th>Kelamin</th>
-                        <th>Nama Ayah</th>
                         <th>No. HP</th>
                         <th>Action</th>
                     </tr>
@@ -27,20 +33,19 @@
                     <tr>
                         <td>{{$loop->iteration}}</td>
                         <td>{{$p->user->name}} </td>
-                        <td>{{$p->kelasnya->nama_kelas}} </td>
+                        <td>{{$p->subKelas->nama_sub_kelas}} </td>
                         <td>{{$p->ustadz->user->name}} </td>
                         <td>{{$p->kelamin}} </td>
-                        <td>{{$p->nama_ayah}} </td>
                         <td>{{$p->no_hp}} </td>
                         <td class="d-flex align-items-center" style="gap: 5px;">
                             <a href="{{route('siswas.edit',$p->id)}}" class="btn btn-sm btn-info"><i class="far fa-edit"></i></a>
-                           {{--  <form method="POST" action="{{ route('siswas.destroy', $p->id) }}" style="display: inline;" id="delete-form-{{ $p->id }}">
+                            <form method="POST" action="{{ route('siswas.destroy', $p->id) }}" style="display: inline;" id="delete-form-{{ $p->id }}">
                                 @csrf
                                 @method('DELETE')
                                 <button type="button" class="btn btn-sm btn-danger" onclick="deleteConfirmation({{ $p->id }})">
-                                    <i class="fas fa-trash-alt"></i> Hapus
+                                    <i class="fas fa-trash-alt"></i>
                                 </button>
-                            </form> --}}
+                            </form>
                             
                         </td>
                     </tr>
@@ -83,23 +88,23 @@
         });
     </script>
     @endif
-    <script>
+   <script>
         $(document).ready(function () {
-          $('#paketTable').DataTable();
+            $('#paketTable').DataTable();
         });
+
         function deleteConfirmation(id) {
             Swal.fire({
                 title: 'Apakah Anda yakin?',
-                text: "Data ini akan dihapus dan tidak dapat dipulihkan!",
+                text: 'Data siswa akan dipindahkan ke data terhapus.',
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
                 confirmButtonText: 'Ya, Hapus!',
                 cancelButtonText: 'Batal'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Jika tombol "Ya, Hapus!" ditekan, kirim form untuk menghapus data
                     document.getElementById('delete-form-' + id).submit();
                 }
             });

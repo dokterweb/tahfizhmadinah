@@ -24,14 +24,16 @@ class StoreUstadzRequest extends FormRequest
     {
         return [
             'name'          => ['required', 'string', 'max:255'],
-            'avatar'        => ['required','image','mimes:png,jpg,jpeg'],
+            'avatar'        => ['nullable','image','mimes:png,jpg,jpeg'],
             'email'         => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password'      => ['required', 'string', 'min:6'],
-            'kelas_id'      => ['required','integer'],
             'kelamin'       => ['required', 'string', 'in:laki-laki,perempuan'], 
             'tempat_lahir'  => ['required', 'string', 'max:255'],
             'tgl_lahir'     => ['required','date'],
             'no_hp'         => ['required','string','max:100'],
+            // Sub kelas yang diajar
+            'sub_kelas_ids'   => ['required', 'array', 'min:1'],
+            'sub_kelas_ids.*' => ['integer', 'exists:sub_kelas,id'],
         ];
     }
 }

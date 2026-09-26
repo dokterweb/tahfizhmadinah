@@ -47,10 +47,10 @@
                                 <tr>
                                     <td>{{ $index + 1 }}</td>
                                     <td>{{ \Carbon\Carbon::parse($history->tgl_manzil)->format('d M Y') }}</td>
-                                    <td>{{ $history->manzil->siswa->user->name }}</td>
+                                    <td>{{ $history->siswa->user->name }}</td>
                                     <td>{{ $history->surat->sura_name }}</td>
                                     <td>{{ $history->dariayat }} - {{ $history->sampaiayat }}</td>
-                                    <td>{{ $history->manzil->ustadz->user->name }}</td>
+                                    <td>{{ $history->ustadz->user->name }}</td>
                                     <td>{{ $history->keterangan }}</td>
                                 </tr>
                             @endforeach

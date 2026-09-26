@@ -1,40 +1,84 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Models\Siswa;
-use App\Models\Ustadz;
-use App\Models\Kelasnya;
-use Illuminate\Http\Request;
 use App\Models\Absensi_siswa;
+use App\Models\Kelasnya;
+use App\Models\Siswa;
+use App\Models\SubKelas;
+use App\Models\Ustadz;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class AbsensiSiswaController extends Controller
 {
      // Fungsi untuk melihat absensi semua siswa (admin)
-     public function index()
-     {
-        if (auth()->user()->hasRole('admin')) {
-            // Admin dapat melihat semua absensi
-            $absensi = Absensi_siswa::all(); 
-        } else {
-            $absensi = []; // Jika tidak ada role yang cocok
+   public function index(Request $request)
+    {
+        if (!auth()->user()->hasRole('admin')) {
+            abort(403, 'Anda tidak memiliki akses.');
         }
- 
-         return view('absensi.index', compact('absensi'));
-     }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Filter tanggal
+        |--------------------------------------------------------------------------
+        */
+
+        $startDate = $request->input(
+            'start_date',
+            Carbon::now()->startOfMonth()->toDateString()
+        );
+
+        $endDate = $request->input(
+            'end_date',
+            Carbon::now()->toDateString()
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Ambil semua absensi siswa
+        |--------------------------------------------------------------------------
+        */
+
+        $absensi = Absensi_siswa::with([
+            'siswa.user',
+            'siswa.kelasnya',
+            'siswa.ustadz.user',
+            'siswa.subKelas',
+        ])
+        ->whereBetween('tgl_absen', [
+            $startDate,
+            $endDate
+        ])
+        ->orderByDesc('tgl_absen')
+        ->orderByDesc('id')
+        ->paginate(10)
+        ->withQueryString();
+
+
+        return view('absensi.index', compact(
+            'absensi',
+            'startDate',
+            'endDate'
+        ));
+    }
  
      public function create()
     {
-        // Ambil semua kelas yang tersedia
-        $kelas = Kelasnya::all();
-
-        return view('absensi.create', compact('kelas'));
+         $SubKelas = SubKelas::with('kelasnya')
+        ->orderBy('kelas_id')
+        ->orderBy('nama_sub_kelas')
+        ->get();
+        
+        return view('absensi.create', compact('SubKelas'));
     }
 
-    public function getSiswaByKelas($kelas_id)
+    public function getSiswaBySubKelas($sub_kelas_id)
     {
-        // Ambil semua siswa berdasarkan kelas_id dan termasuk user (untuk mendapatkan nama)
+        // Ambil semua siswa berdasarkan sub_kelas_id dan termasuk user (untuk mendapatkan nama)
         $siswa = Siswa::with('user')  // Mengambil relasi user untuk nama siswa
-                      ->where('kelas_id', $kelas_id)
+                      ->where('sub_kelas_id', $sub_kelas_id)
                       ->get();
     
         // Kirimkan data siswa dalam bentuk JSON
@@ -42,51 +86,76 @@ class AbsensiSiswaController extends Controller
     }
     
 
-    public function store(Request $request)
+   public function store(Request $request)
     {
-        // Validasi input
-        $request->validate([
-            'kelas_id' => 'required|exists:kelasnyas,id',  // Pastikan kelas_id ada
-            'tgl_absen' => 'required|date',
-            'status' => 'required|array',
+        $validated = $request->validate([
+            'sub_kelas_id' => ['required', 'integer', 'exists:sub_kelas,id'],
+            'tgl_absen' => ['required', 'date'],
+            'status' => ['required', 'array'],
+            'status.*' => ['required', 'in:hadir,absen,izin'],
         ]);
 
-        // Cek apakah absensi sudah ada di tanggal yang sama untuk kelas yang dipilih
-        $existingAbsensi = Absensi_siswa::whereHas('siswa', function ($query) use ($request) {
-            $query->where('kelas_id', $request->kelas_id);  // Cek kelas siswa
-        })
-        ->where('tgl_absen', $request->tgl_absen)
-        ->exists();
+        try {
 
-        // Jika absensi sudah ada untuk tanggal tersebut, tampilkan notifikasi error
-        if ($existingAbsensi) {
-            return response()->json(['error' => 'Absensi sudah ada di tanggal tersebut. Semua siswa sudah absen.'], 400);
-        }
+            // Cek apakah absensi sudah dibuat pada tanggal tersebut
+            $existingAbsensi = Absensi_siswa::whereHas('siswa', function ($query) use ($request) {
+                $query->where('sub_kelas_id', $request->sub_kelas_id);
+            })
+            ->whereDate('tgl_absen', $request->tgl_absen)
+            ->exists();
 
-        // Simpan absensi untuk setiap siswa yang dipilih
-        foreach ($request->status as $siswa_id => $status) {
-            Absensi_siswa::create([
-                'siswa_id' => $siswa_id,
-                'tgl_absen' => $request->tgl_absen,
-                'status' => $status,  // Status absensi per siswa
+            if ($existingAbsensi) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Absensi untuk kelas tersebut pada tanggal ini sudah dibuat.'
+                ], 422);
+            }
+
+            foreach ($request->status as $siswa_id => $status) {
+
+                Absensi_siswa::create([
+                    'siswa_id' => $siswa_id,
+                    'tgl_absen' => $request->tgl_absen,
+                    'status' => $status,
+                ]);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Absensi berhasil disimpan.'
             ]);
-        }
 
-        return response()->json(['success' => 'Absensi berhasil disimpan.'], 200);
+        } catch (\Throwable $e) {
+
+            \Log::error('Gagal menyimpan absensi', [
+                'error' => $e->getMessage(),
+                'request' => $request->all(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Absensi gagal disimpan. Silakan coba lagi.'
+            ], 500);
+        }
     }
     
 
-    public function checkAbsensi(Request $request)
+   public function checkAbsensi(Request $request)
     {
-        // Cek apakah absensi sudah ada di tanggal yang sama untuk kelas yang dipilih
+        $request->validate([
+            'sub_kelas_id' => ['required', 'integer', 'exists:sub_kelas,id'],
+            'tgl_absen' => ['required', 'date'],
+        ]);
+
         $existingAbsensi = Absensi_siswa::whereHas('siswa', function ($query) use ($request) {
-            $query->where('kelas_id', $request->kelas_id);  // Cek kelas siswa
+            $query->where('sub_kelas_id', $request->sub_kelas_id);
         })
-        ->where('tgl_absen', $request->tgl_absen)
+        ->whereDate('tgl_absen', $request->tgl_absen)
         ->exists();
 
-        // Kembalikan status dalam bentuk JSON
-        return response()->json(['exists' => $existingAbsensi]);
+        return response()->json([
+            'exists' => $existingAbsensi
+        ]);
     }
 
     public function destroy($id)
@@ -101,21 +170,62 @@ class AbsensiSiswaController extends Controller
         return redirect()->route('absensis')->with('success', 'Absensi berhasil dihapus');
     }
     
-    public function ustadzIndex()
+    public function ustadzIndex(Request $request)
     {
         // Ambil data ustadz yang sedang login
         $ustadz = Ustadz::where('user_id', auth()->id())->first();
 
         if (!$ustadz) {
-            return redirect()->back()->with('error', 'Ustadz tidak ditemukan.');
+            return redirect()
+                ->back()
+                ->with('error', 'Ustadz tidak ditemukan.');
         }
 
-        // Ambil absensi semua siswa yang diampu oleh ustadz ini
+        /*
+        |--------------------------------------------------------------------------
+        | Filter tanggal
+        |--------------------------------------------------------------------------
+        */
+
+        $startDate = $request->input(
+            'start_date',
+            Carbon::now()->startOfMonth()->toDateString()
+        );
+
+        $endDate = $request->input(
+            'end_date',
+            Carbon::now()->toDateString()
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Ambil absensi siswa
+        |--------------------------------------------------------------------------
+        */
+
         $absensi = Absensi_siswa::whereHas('siswa', function ($query) use ($ustadz) {
             $query->where('ustadz_id', $ustadz->id);
-        })->with(['siswa.user'])->orderBy('tgl_absen', 'desc')->get();
+        })
+        ->with([
+            'siswa.user',
+            'siswa.kelasnya',
+        ])
+        ->whereBetween('tgl_absen', [
+            $startDate,
+            $endDate
+        ])
+        ->orderByDesc('tgl_absen')
+        ->orderByDesc('id')
+        ->paginate(10)
+        ->withQueryString();
 
-        return view('absensi.ustadz_index', compact('absensi'));
+
+        return view('absensi.ustadz_index', compact(
+            'absensi',
+            'startDate',
+            'endDate'
+        ));
     }
 
     public function ustadzCreate()

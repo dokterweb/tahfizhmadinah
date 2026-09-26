@@ -19,11 +19,11 @@
                 @forelse ($sabqis as $p)
                     <tr>
                         <td>{{$loop->iteration}}</td>
-                        <td>{{$p->siswa->user->name}} </td>
-                        <td>{{$p->siswa->kelasnya->nama_kelas}} </td>
+                        <td>{{$p->user->name}} </td>
+                        <td>{{$p->kelasnya->nama_kelas}} </td>
                         <td>{{$p->ustadz->user->name}} </td>
                         <td class="d-flex align-items-center" style="gap: 5px;">
-                           <a href="{{route('sabqi-history.show',$p->siswa_id)}}" class="btn btn-sm btn-info"><i class="far fa-edit"></i></a>
+                           <a href="{{route('sabqi-history.show',$p->id)}}" class="btn btn-sm btn-info"><i class="far fa-edit"></i></a>
                            {{--   <form method="POST" action="{{ route('siswas.destroy', $p->id) }}" style="display: inline;" id="delete-form-{{ $p->id }}">
                                 @csrf
                                 @method('DELETE')

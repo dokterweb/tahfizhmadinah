@@ -23,20 +23,47 @@
           <!-- Add icons to the links using the .nav-icon class
                with font-awesome or any other icon font library -->
           <li class="nav-item">
-            <a href="{{route('dashboard')}}" class="nav-link {{request()->routeIs('dashboard')?'active':''}}">
-              <i class="nav-icon fas fa-tachometer-alt"></i>
-              <p>Dashboard</p>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a href="{{route('payouts.index')}}" class="nav-link {{request()->routeIs('payouts.index')?'active':''}}">
-              <i class="nav-icon fas fa-tachometer-alt"></i>
-              <p>Pembayaran</p>
-            </a>
-          </li>
-          <li class="nav-item">
+
+            @if(auth()->user()->hasRole('admin'))
+
+                <a href="{{ route('dashboard') }}"
+                  class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+
+                    <i class="nav-icon fas fa-tachometer-alt"></i>
+
+                    <p>Dashboard</p>
+
+                </a>
+
+            @elseif(auth()->user()->hasRole('ustadz'))
+
+                <a href="{{ route('ustadz.dashboard') }}"
+                  class="nav-link {{ request()->routeIs('ustadz.dashboard') ? 'active' : '' }}">
+
+                    <i class="nav-icon fas fa-tachometer-alt"></i>
+
+                    <p>Dashboard</p>
+
+                </a>
+
+            @elseif(auth()->user()->hasRole('siswa'))
+
+                <a href="{{ route('siswa.dashboard') }}"
+                  class="nav-link {{ request()->routeIs('siswa.dashboard') ? 'active' : '' }}">
+
+                    <i class="nav-icon fas fa-tachometer-alt"></i>
+
+                    <p>Dashboard</p>
+
+                </a>
+
+            @endif
+
+        </li>
+          @role('admin')
+           <li class="nav-item">
             <a href="#" class="nav-link">
-              <i class="nav-icon fas fa-tachometer-alt"></i>
+              <i class="nav-icon fas fa-bars"></i>
               <p>Master<i class="right fas fa-angle-left"></i></p>
             </a>
             <ul class="nav nav-treeview">
@@ -58,12 +85,30 @@
                   <p>Kelas</p>
                 </a>
               </li>
+              <li class="nav-item">
+                <a href="{{route('sub_kelas.index')}}" class="nav-link {{request()->routeIs('sub_kelas.index')?'active':''}}">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Sub Kelas</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="{{route('absensis')}}" class="nav-link {{request()->routeIs('absensis')?'active':''}}">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Absensi</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="{{route('settings.school.edit')}}" class="nav-link {{request()->routeIs('settings.school.edit')?'active':''}}">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Profile Sekolah</p>
+                </a>
+              </li>
             </ul>
           </li> 
           
           <li class="nav-item">
             <a href="#" class="nav-link">
-              <i class="nav-icon fas fa-tachometer-alt"></i>
+              <i class="nav-icon fas fa-book-open" style="color: rgb(99, 230, 190);"></i>
               <p>Sabaq<i class="right fas fa-angle-left"></i></p>
             </a>
             <ul class="nav nav-treeview">
@@ -84,7 +129,7 @@
 
           <li class="nav-item">
             <a href="#" class="nav-link">
-              <i class="nav-icon fas fa-tachometer-alt"></i>
+              <i class="nav-icon fas fa-book-open" style="color: rgb(255, 212, 59);"></i>
               <p>Sabqi<i class="right fas fa-angle-left"></i></p>
             </a>
             <ul class="nav nav-treeview">
@@ -105,7 +150,7 @@
 
           <li class="nav-item">
             <a href="#" class="nav-link">
-              <i class="nav-icon fas fa-tachometer-alt"></i>
+              <i class="nav-icon fas fa-book-open" style="color: rgb(231, 116, 252);"></i>
               <p>Manzil<i class="right fas fa-angle-left"></i></p>
             </a>
             <ul class="nav nav-treeview">
@@ -123,7 +168,71 @@
               </li>
             </ul>
           </li> 
+          @endrole
+          @role('ustadz')
+          <li class="nav-item">
+            <a href="#" class="nav-link">
+              <i class="nav-icon fas fa-book-open" style="color: rgb(99, 230, 190);"></i>
+              <p>Sabaq<i class="right fas fa-angle-left"></i></p>
+            </a>
+            <ul class="nav nav-treeview">
+              <li class="nav-item">
+                <a href="{{route('sabaqs')}}" class="nav-link {{request()->routeIs('sabaqs')?'active':''}}">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Input Sabaq</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="{{route('sabaqs.laporan')}}" class="nav-link {{request()->routeIs('sabaqs.laporan')?'active':''}}">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Laporan Sabaq</p>
+                </a>
+              </li>
+            </ul>
+          </li> 
 
+          <li class="nav-item">
+            <a href="#" class="nav-link">
+              <i class="nav-icon fas fa-book-open" style="color: rgb(255, 212, 59);"></i>
+              <p>Sabqi<i class="right fas fa-angle-left"></i></p>
+            </a>
+            <ul class="nav nav-treeview">
+              <li class="nav-item">
+                <a href="{{route('sabqis')}}" class="nav-link {{request()->routeIs('sabqis')?'active':''}}">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Input Sabqi</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="{{route('sabqis.laporan')}}" class="nav-link {{request()->routeIs('sabqis.laporan')?'active':''}}">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Laporan Sabqi</p>
+                </a>
+              </li>
+            </ul>
+          </li> 
+
+          <li class="nav-item">
+            <a href="#" class="nav-link">
+              <i class="nav-icon fas fa-book-open" style="color: rgb(231, 116, 252);"></i>
+              <p>Manzil<i class="right fas fa-angle-left"></i></p>
+            </a>
+            <ul class="nav nav-treeview">
+              <li class="nav-item">
+                <a href="{{route('manzils')}}" class="nav-link {{request()->routeIs('manzils')?'active':''}}">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Input Manzil</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="{{route('manzils.laporan')}}" class="nav-link {{request()->routeIs('manzils.laporan')?'active':''}}">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Laporan Manzil</p>
+                </a>
+              </li>
+            </ul>
+          </li> 
+{{-- 
           <li class="nav-item">
             <a href="#" class="nav-link">
               <i class="nav-icon fas fa-tachometer-alt"></i>
@@ -170,47 +279,52 @@
               </li>
             </ul>
           </li> 
-
-          <li class="nav-item">
-            <a href="{{route('absensis')}}" class="nav-link {{request()->routeIs('absensis')?'active':''}}">
-              <i class="nav-icon fas fa-th"></i>
-              <p>Absensi</p>
-            </a>
-          </li>
+ --}}
+          
           <li class="nav-item">
             <a href="{{route('absensis.ustadzIndex')}}" class="nav-link {{request()->routeIs('absensis.ustadzIndex')?'active':''}}">
-              <i class="nav-icon fas fa-th"></i>
+              <i class="nav-icon far fa-bell"></i>
               <p>Absensi for Ustadz</p>
             </a>
           </li>
+          @endrole
+          @role('siswa')
           <li class="nav-item">
             <a href="{{route('sabaqs.sabaqsiswa')}}" class="nav-link {{request()->routeIs('sabaqs.sabaqsiswa')?'active':''}}">
-              <i class="nav-icon fas fa-th"></i>
+              <i class="nav-icon fas fa-book-open" style="color: rgb(99, 230, 190);"></i>
               <p>Sabaq</p>
             </a>
           </li>
           <li class="nav-item">
             <a href="{{route('sabqis.sabqisiswa')}}" class="nav-link {{request()->routeIs('sabqis.sabqisiswa')?'active':''}}">
-              <i class="nav-icon fas fa-th"></i>
+              <i class="nav-icon fas fa-book-open" style="color: rgb(255, 212, 59);"></i>
               <p>Sabqi</p>
             </a>
           </li>
           <li class="nav-item">
             <a href="{{route('manzils.manzilsiswa')}}" class="nav-link {{request()->routeIs('manzils.manzilsiswa')?'active':''}}">
-              <i class="nav-icon fas fa-th"></i>
+              <i class="nav-icon fas fa-book-open" style="color: rgb(231, 116, 252);"></i>
               <p>Manzil</p>
             </a>
           </li>
-          <li class="nav-item">
+          @endrole
+         {{--  <li class="nav-item">
             <a href="{{route('iqros.iqrosiswa')}}" class="nav-link {{request()->routeIs('iqros.iqrosiswa')?'active':''}}">
               <i class="nav-icon fas fa-th"></i>
               <p>Iqro</p>
             </a>
-          </li>
+          </li> 
           <li class="nav-item">
             <a href="{{route('payoutsiswas.index')}}" class="nav-link {{request()->routeIs('payoutsiswas.index')?'active':''}}">
               <i class="nav-icon fas fa-th"></i>
               <p>Pembayaran</p>
+            </a>
+          </li>--}}
+
+          <li class="nav-item">
+            <a href="{{ route('profile.edit') }}" class="nav-link {{ request()->routeIs('profile.edit') ? 'active' : '' }}">
+                <i class="nav-icon fas fa-user"></i>
+                <p>Profile</p>
             </a>
           </li>
         </ul>

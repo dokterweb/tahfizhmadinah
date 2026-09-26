@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use PDF;
 use App\Models\Siswa;
 use App\Models\Bulanan;
 use App\Models\Periode;
 use Illuminate\Http\Request;
+use App\Models\Profilesekolah;
 use Illuminate\Support\Facades\DB;
 
 class PayoutController extends Controller
@@ -49,7 +51,7 @@ class PayoutController extends Controller
        
         $periodes = Periode::where('periode_status', '1')->get();
         $siswas     = Siswa::all();
-        return view('payouts.index', compact('bulanans', 'totBill', 'telahDibayar','periodes','siswas','siswanya'));
+        return view('payouts.index', compact('bulanans', 'totBill', 'telahDibayar','periodes','siswas','siswanya','siswaId'));
 
     }
 
@@ -119,4 +121,28 @@ class PayoutController extends Controller
     
         return redirect()->back()->with('success', 'Data berhasil diperbarui dan transaksi dicatat.');
     }
+
+    public function invoice($paymentId, $bulanId)
+    {
+        // Ambil data bulanan berdasarkan payment_id dan bulan_id
+        $bulanan = Bulanan::with(['siswa.kelasnya', 'bulan', 'payment.periode', 'payment.posnya'])
+            ->where('payment_id', $paymentId)
+            ->where('bulan_id', $bulanId)
+            ->firstOrFail();
+    
+        // ambil data siswa
+        $siswa = $bulanan->siswa;
+    
+        // ambil setting sekolah
+        $profile = Profilesekolah::first();
+
+        return view('payouts.cetakperbayar', compact('siswa', 'bulanan', 'profile'));
+    /*     // generate pdf
+        $pdf = PDF::loadView('payouts.cetakperbayar', compact('siswa', 'bulanan', 'profile'))
+                  ->setPaper('A4', 'portrait');
+    
+        // preview PDF di tab baru
+        return $pdf->stream('cetakperbayar_'.$siswa->nama.'_'.$bulanan->bulan->nama_bulan.'.pdf'); */
+    }
+    
 }

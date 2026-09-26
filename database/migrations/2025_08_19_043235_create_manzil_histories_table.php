@@ -13,8 +13,12 @@ return new class extends Migration
     {
         Schema::create('manzil_histories', function (Blueprint $table) {
             $table->increments('id');
-            $table->unsignedInteger('manzil_id');
-            $table->foreign('manzil_id')->references('id')->on('manzils')->onDelete('cascade');
+            $table->unsignedBigInteger('siswa_id');   
+            $table->foreign('siswa_id')->references('id')->on('siswas')->cascadeOnDelete();
+            $table->unsignedBigInteger('ustadz_id');
+            $table->foreign('ustadz_id')->references('id')->on('ustadzs')->cascadeOnDelete();
+            $table->unsignedInteger('sub_kelas_id');
+            $table->foreign('sub_kelas_id')->references('id')->on('sub_kelas')->cascadeOnDelete();
             $table->unsignedInteger('surat_id');
             $table->unsignedInteger('surat_no');
             $table->unsignedInteger('dariayat');

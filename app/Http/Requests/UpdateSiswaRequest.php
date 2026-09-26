@@ -35,14 +35,12 @@ class UpdateSiswaRequest extends FormRequest
                 Rule::unique('users')->ignore($siswa->user->id), // Abaikan email siswa yang sedang diupdate
             ],
             'password'      => ['nullable', 'string', 'min:6'],
-            'kelas_id'      => ['required','integer'],
+            'sub_kelas_id'  => ['required','integer'],
             'ustadz_id'     => ['required','integer'],
             'kelamin'       => ['required', 'string', 'in:laki-laki,perempuan'], 
             'tempat_lahir'  => ['required', 'string', 'max:255'],
             'tgl_lahir'     => ['required','date'],
             'alamat'        => ['required','string','max:65535'],
-            'nama_ayah'     => ['required', 'string', 'max:255'],
-            'nama_ibu'      => ['required', 'string', 'max:255'],
             'no_hp'         => ['required','string','max:100'],
         ];
     }

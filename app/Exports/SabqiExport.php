@@ -24,21 +24,39 @@ class SabqiExport implements FromCollection, WithHeadings, WithStyles, WithColum
         $this->end_date = $end_date;
     }
 
-    public function collection()
+        public function collection()
     {
-        // Ambil data berdasarkan rentang tanggal yang diberikan
-        return Sabqi_history::whereBetween('tgl_sabqi', [$this->start_date, $this->end_date])
-            ->with(['surat', 'sabqi.siswa']) // Menyertakan data surat dan siswa
+        return Sabqi_history::whereBetween('tgl_sabqi', [
+                $this->start_date,
+                $this->end_date
+            ])
+            ->with([
+                'surat',
+                'siswa.user',
+                'ustadz.user',
+                'subKelas',
+            ])
+            ->orderBy('tgl_sabqi')
+            ->orderBy('id')
             ->get()
-            ->map(function($item) {
+            ->map(function ($item) {
+
                 return [
-                    'Tanggal'           => \Carbon\Carbon::parse($item->tgl_sabqi)->format('d-M-Y'),
-                    'Nama Siswa'        => $item->sabqi->siswa->user->name,
-                    'Nama Surat'        => $item->surat->sura_name,
-                    'Dari Ayat'         => $item->dariayat,
-                    'Sampai Ayat'       => $item->sampaiayat,
-                    'Ustadz Ustadzah'   => $item->sabqi->ustadz->user->name,
-                    'Keterangan'        => $item->keterangan,
+                    'Tanggal' => \Carbon\Carbon::parse(
+                        $item->tgl_sabqi
+                    )->format('d-M-Y'),
+
+                    'Nama Siswa' => $item->siswa?->user?->name ?? '-',
+
+                    'Nama Surat' => $item->surat?->sura_name ?? '-',
+
+                    'Dari Ayat' => $item->dariayat,
+
+                    'Sampai Ayat' => $item->sampaiayat,
+
+                    'Ustadz Ustadzah' => $item->ustadz?->user?->name ?? '-',
+
+                    'Keterangan' => $item->keterangan ?? '-',
                 ];
             });
     }

@@ -27,14 +27,12 @@ class StoreSiswaRequest extends FormRequest
             'avatar'        => ['nullable','image','mimes:png,jpg,jpeg'],
             'email'         => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password'      => ['required', 'string', 'min:6'],
-            'kelas_id'      => ['required','integer'],
-            'ustadz_id'     => ['required','integer'],
+            'sub_kelas_id'  => ['required','integer','exists:sub_kelas,id'],
+            'ustadz_id'     => ['required','integer','exists:ustadzs,id'],
             'kelamin'       => ['required', 'string', 'in:laki-laki,perempuan'], 
             'tempat_lahir'  => ['required', 'string', 'max:255'],
             'tgl_lahir'     => ['required','date'],
             'alamat'        => ['required','string','max:65535'],
-            'nama_ayah'     => ['required', 'string', 'max:255'],
-            'nama_ibu'      => ['required', 'string', 'max:255'],
             'no_hp'         => ['required','string','max:100'],
         ];
     }

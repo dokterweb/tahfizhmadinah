@@ -15,16 +15,16 @@
     @endif
     <div class="card">
         <div class="card-body">
-            <form action="{{ route('absensis.store') }}" method="POST">
+            <form id="formAbsensi" action="{{ route('absensis.store') }}" method="POST">
                 @csrf  
                 <!-- Dropdown Pilih Kelas -->
                 <div class="col-md-6">
                     <div class="form-group">
                         <label for="kelas">Pilih Kelas</label>
-                        <select name="kelas_id" id="kelas" class="form-control" onchange="getSiswa()">
+                        <select name="sub_kelas_id" id="subkelas" class="form-control">
                             <option value="">-- Pilih Kelas --</option>
-                            @foreach ($kelas as $kelasItem)
-                                <option value="{{ $kelasItem->id }}">{{ $kelasItem->nama_kelas }}</option>
+                            @foreach ($SubKelas as $kelasItem)
+                                <option value="{{ $kelasItem->id }}">{{ $kelasItem->nama_sub_kelas }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -61,107 +61,300 @@
 <!-- SweetAlert2 Script -->
 @section('scripts')
 <script>
-    $(document).ready(function() {
-        // Fungsi untuk mendapatkan siswa berdasarkan kelas yang dipilih
-        function getSiswa() {
-            var kelas_id = $('#kelas').val(); // Menggunakan jQuery untuk mengambil nilai kelas_id
+$(document).ready(function () {
 
-            if (kelas_id) {
-                // Jika kelas dipilih, lakukan AJAX untuk mengambil siswa
-                $.ajax({
-                    url: '/get-siswa/' + kelas_id,  // Kirim kelas_id sebagai parameter
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function(data) {
-                        // Kosongkan container siswa terlebih dahulu
-                        $('#siswa_container').empty();
+    /*
+    |--------------------------------------------------------------------------
+    | Ambil siswa berdasarkan Sub Kelas
+    |--------------------------------------------------------------------------
+    */
+    function getSiswa() {
 
-                        // Menambahkan daftar siswa ke container
-                        var siswaList = '';
-                        data.siswa.forEach(function(siswa) {
-                            // Mengakses nama siswa melalui relasi user
-                            var siswaName = siswa.user.name;
+        var subKelasId = $('#subkelas').val();
 
-                            siswaList += `
-                                <div class="form-group">
-                                    <label for="status_${siswa.id}">${siswaName}</label>
-                                    <select class="form-control" name="status[${siswa.id}]" id="status_${siswa.id}">
-                                        <option value="hadir">Hadir</option>
-                                        <option value="absen">Absen</option>
-                                        <option value="izin">Izin</option>
-                                    </select>
-                                </div>
-                            `;
-                        });
-
-                        // Masukkan siswaList ke dalam container siswa
-                        $('#siswa_container').html(siswaList);
-                        $('#siswa_list').show();  // Tampilkan container siswa
-                    },
-                    error: function() {
-                        alert("Terjadi kesalahan saat mengambil data siswa.");
-                    }
-                });
-            } else {
-                $('#siswa_list').hide();  // Sembunyikan daftar siswa jika kelas belum dipilih
-            }
+        if (!subKelasId) {
+            $('#siswa_container').empty();
+            $('#siswa_list').hide();
+            return;
         }
 
-        // Mengaktifkan fungsi getSiswa ketika dropdown kelas berubah
-        $('#kelas').change(function() {
-            getSiswa();  // Memanggil fungsi getSiswa saat kelas dipilih
-        });
+        $.ajax({
 
-       // Form submit event
-       $('form').submit(function(event) {
-            event.preventDefault();  // Mencegah form submit default
+            url: "{{ url('/get-siswa') }}/" + subKelasId,
 
-            var formData = $(this).serialize();  // Ambil data form
+            type: 'GET',
 
-            // Cek terlebih dahulu apakah absensi sudah ada untuk kelas dan tanggal
-            var kelas_id = $('#kelas').val();
-            var tgl_absen = $('#tgl_absen').val();
+            dataType: 'json',
 
-            $.ajax({
-                url: '/check-absensi',  // URL untuk memeriksa apakah absensi sudah ada
-                type: 'POST',
-                data: {
-                    _token: $('input[name="_token"]').val(), // Kirimkan token CSRF
-                    kelas_id: kelas_id,
-                    tgl_absen: tgl_absen
-                },
-                success: function(response) {
-                    if (response.exists) {
-                        // Jika sudah ada absensi, tampilkan alert
-                        alert('Absensi sudah ada di tanggal tersebut. Semua siswa sudah absen.');
-                    } else {
-                        // Jika absensi belum ada, lanjutkan dengan pengiriman form
-                        $.ajax({
-                            url: "{{ route('absensis.store') }}",  // URL form
-                            method: 'POST',  // Pastikan menggunakan method POST
-                            data: formData,
-                            success: function(response) {
-                                // Jika berhasil, redirect atau tampilkan notifikasi
-                                alert('Absensi berhasil disimpan.');
-                                window.location.href = '{{ route("absensis") }}';  // Redirect ke halaman absensi
-                            },
-                            error: function(xhr) {
-                                // Jika ada error, tampilkan pesan error
-                                alert('Terjadi kesalahan. Silakan coba lagi.');
-                            }
-                        });
-                    }
-                },
-                error: function(xhr) {
-                    alert('Terjadi kesalahan saat memeriksa absensi.');
+            beforeSend: function () {
+
+                $('#siswa_container').html(
+                    '<div class="text-muted">Memuat data siswa...</div>'
+                );
+
+                $('#siswa_list').show();
+            },
+
+            success: function (response) {
+
+                $('#siswa_container').empty();
+
+                if (!response.siswa || response.siswa.length === 0) {
+
+                    $('#siswa_container').html(`
+                        <div class="alert alert-warning">
+                            Tidak ada siswa pada sub kelas ini.
+                        </div>
+                    `);
+
+                    return;
                 }
-            });
+
+                var siswaList = '';
+
+                response.siswa.forEach(function (siswa) {
+
+                    var siswaName = siswa.user
+                        ? siswa.user.name
+                        : 'Nama siswa tidak ditemukan';
+
+                    siswaList += `
+                        <div class="form-group mb-3">
+
+                            <label for="status_${siswa.id}">
+                                ${siswaName}
+                            </label>
+
+                            <select
+                                class="form-control"
+                                name="status[${siswa.id}]"
+                                id="status_${siswa.id}"
+                                required
+                            >
+                                <option value="hadir">Hadir</option>
+                                <option value="absen">Absen</option>
+                                <option value="izin">Izin</option>
+                            </select>
+
+                        </div>
+                    `;
+                });
+
+                $('#siswa_container').html(siswaList);
+                $('#siswa_list').show();
+            },
+
+            error: function (xhr) {
+
+                console.error(xhr.responseText);
+
+                var message = 'Terjadi kesalahan saat mengambil data siswa.';
+
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    message = xhr.responseJSON.message;
+                }
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal!',
+                    text: message
+                });
+
+                $('#siswa_list').hide();
+            }
         });
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Ketika Sub Kelas berubah
+    |--------------------------------------------------------------------------
+    */
+    $('#subkelas').on('change', function () {
+
+        getSiswa();
+
     });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Submit Form
+    |--------------------------------------------------------------------------
+    */
+    $('#formAbsensi').on('submit', function (event) {
+
+        event.preventDefault();
+
+        var form = $(this);
+
+        var subKelasId = $('#subkelas').val();
+        var tglAbsen = $('#tgl_absen').val();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Validasi awal
+        |--------------------------------------------------------------------------
+        */
+
+        if (!subKelasId) {
+
+            Swal.fire({
+                icon: 'warning',
+                title: 'Perhatian',
+                text: 'Silakan pilih sub kelas terlebih dahulu.'
+            });
+
+            return;
+        }
+
+        if (!tglAbsen) {
+
+            Swal.fire({
+                icon: 'warning',
+                title: 'Perhatian',
+                text: 'Silakan pilih tanggal absensi.'
+            });
+
+            return;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Cek apakah absensi sudah ada
+        |--------------------------------------------------------------------------
+        */
+
+        $.ajax({
+
+            url: "{{ route('check-absensi') }}",
+
+            type: 'POST',
+
+            data: {
+                _token: "{{ csrf_token() }}",
+                sub_kelas_id: subKelasId,
+                tgl_absen: tglAbsen
+            },
+
+            beforeSend: function () {
+
+                form.find('button[type="submit"]')
+                    .prop('disabled', true);
+            },
+
+            success: function (response) {
+
+                if (response.exists) {
+
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Absensi Sudah Ada',
+                        text: 'Absensi untuk sub kelas dan tanggal tersebut sudah dibuat.',
+                        confirmButtonText: 'OK'
+                    });
+
+                    form.find('button[type="submit"]')
+                        .prop('disabled', false);
+
+                    return;
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | Simpan Absensi
+                |--------------------------------------------------------------------------
+                */
+
+                $.ajax({
+
+                    url: "{{ route('absensis.store') }}",
+
+                    type: 'POST',
+
+                    data: form.serialize(),
+
+                    dataType: 'json',
+
+                    success: function (response) {
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil!',
+                            text: response.message || 'Absensi berhasil disimpan.',
+                            showConfirmButton: false,
+                            timer: 1500
+                        }).then(function () {
+
+                            window.location.href =
+                                "{{ route('absensis') }}";
+
+                        });
+                    },
+
+                    error: function (xhr) {
+
+                        console.error(xhr.responseText);
+
+                        var message =
+                            'Terjadi kesalahan saat menyimpan absensi.';
+
+                        if (xhr.responseJSON) {
+
+                            if (xhr.responseJSON.message) {
+                                message = xhr.responseJSON.message;
+                            }
+
+                            if (xhr.responseJSON.errors) {
+
+                                message = Object.values(
+                                    xhr.responseJSON.errors
+                                )
+                                .flat()
+                                .join('<br>');
+                            }
+                        }
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal!',
+                            html: message
+                        });
+
+                        form.find('button[type="submit"]')
+                            .prop('disabled', false);
+                    }
+                });
+            },
+
+            error: function (xhr) {
+
+                console.error(xhr.responseText);
+
+                var message =
+                    'Terjadi kesalahan saat memeriksa absensi.';
+
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    message = xhr.responseJSON.message;
+                }
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal!',
+                    text: message
+                });
+
+                form.find('button[type="submit"]')
+                    .prop('disabled', false);
+            }
+        });
+
+    });
+
+});
 </script>
-
-
-
-
 
 @endsection

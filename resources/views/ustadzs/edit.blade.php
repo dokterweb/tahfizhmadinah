@@ -23,13 +23,23 @@
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label >Kelas</label>
-                            <select class="form-control" name="kelas_id">
-                                @foreach ($kelas as $p)
-                                <option value="{{ $p->id }}" {{ $ustadz->kelas_id == $p->id ? 'selected' : '' }}>{{ $p->nama_kelas }}</option>
+                            <label>Sub Kelas yang Diajar</label>
+
+                            <div class="row">
+                                @foreach ($subKelas as $sub)
+                                    <div class="col-md-3 col-sm-6">
+                                        <div class="custom-control custom-checkbox mb-2">
+                                            <input type="checkbox" class="custom-control-input" id="sub_kelas_{{ $sub->id }}" name="sub_kelas_ids[]"
+                                                value="{{ $sub->id }}" {{ in_array($sub->id, old('sub_kelas_ids', $selectedSubKelas)) ? 'checked' : '' }}>
+                                            <label class="custom-control-label" for="sub_kelas_{{ $sub->id }}">
+                                                {{ $sub->nama_sub_kelas }}
+                                            </label>
+                                        </div>
+                                    </div>
                                 @endforeach
-                            </select>
-                            @error('kelas_id')
+                            </div>
+
+                            @error('sub_kelas_ids')
                                 <span class="text-danger">{{ $message }}</span>
                             @enderror
                         </div>

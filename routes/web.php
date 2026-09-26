@@ -1,34 +1,57 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\PosController;
+use App\Http\Controllers\AbsensiSiswaController;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IqroController;
 use App\Http\Controllers\KelasController;
+use App\Http\Controllers\ManzilController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PayoutController;
+use App\Http\Controllers\PayoutsiswaController;
+use App\Http\Controllers\PeriodeController;
+use App\Http\Controllers\PosController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ProfilesekolahController;
 use App\Http\Controllers\SabaqController;
 use App\Http\Controllers\SabqiController;
 use App\Http\Controllers\SiswaController;
-use App\Http\Controllers\ManzilController;
-use App\Http\Controllers\PayoutController;
-use App\Http\Controllers\UstadzController;
-use App\Http\Controllers\PaymentController;
-use App\Http\Controllers\PeriodeController;
+use App\Http\Controllers\SiswaDashboardController;
+use App\Http\Controllers\SubKelasController;
 use App\Http\Controllers\TelegramController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\PayoutsiswaController;
-use App\Http\Controllers\AbsensiSiswaController;
+use App\Http\Controllers\UstadzController;
+use App\Http\Controllers\UstadzDashboardController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('auth.login');
+    return redirect()->route('login');
 });
 
-Route::post('/login',[LoginController::class, 'handleLogin'])->name('login');
-Route::post('/logout',[LoginController::class, 'logout'])->name('logout');
+// Menampilkan halaman login
+Route::get('/login', [LoginController::class, 'index'])
+    ->name('login');
+
+// Memproses login
+Route::post('/login', [LoginController::class, 'handleLogin'])
+    ->name('login.process');
+
+// Logout
+Route::post('/logout', [LoginController::class, 'logout'])
+    ->name('logout');
+    
 Route::post('/telegram/webhook', [TelegramController::class, 'handleWebhook']);
 Route::get('/set-webhook', [TelegramController::class, 'setWebhook']);
 
 Route::middleware('auth')->group(function () {
-    Route::get('/dashboard',[DashboardController::class, 'index'])->middleware('role:admin|ustadz|siswa')->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('role:admin')->name('dashboard');
+    Route::get('/ustadz/dashboard', [UstadzDashboardController::class, 'index'])->middleware('role:ustadz')->name('ustadz.dashboard');
+    Route::get('/siswa/dashboard', [SiswaDashboardController::class, 'index'])->middleware('role:siswa')->name('siswa.dashboard');
+
+    Route::get('settings/school', [ProfilesekolahController::class, 'edit'])->name('settings.school.edit');
+    Route::post('settings/school', [ProfilesekolahController::class, 'update'])->name('settings.school.update');
+
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
 
     Route::get('/kelasnyas',[KelasController::class, 'index'])->middleware('role:admin')->name('kelasnyas');
     Route::post('kelasnyas/store', [KelasController::class, 'store'])->middleware('role:admin')->name('kelasnyas.store');
@@ -36,18 +59,35 @@ Route::middleware('auth')->group(function () {
     Route::put('kelasnyas/{kelasnya}', [KelasController::class, 'update'])->middleware('role:admin')->name('kelasnyas.update');
     Route::delete('kelasnyas/{kelasnya}', [KelasController::class, 'destroy'])->middleware('role:admin')->name('kelasnyas.destroy');
 
-    Route::resource('ustadzs', UstadzController::class)->middleware('role:admin');
-    Route::resource('siswas', SiswaController::class)->middleware('role:admin');
-    Route::get('get-ustadz/{kelas_id}', [SiswaController::class, 'getUstadzByKelas'])->middleware('role:admin');
+    Route::prefix('sub-kelas')->middleware('role:admin')->group(function () {
+        Route::get('/', [SubKelasController::class, 'index'])->name('sub_kelas.index');
+        Route::post('/', [SubKelasController::class, 'store'])->name('sub_kelas.store');
+        Route::get('/export-excel',[SubKelasController::class, 'exportExcel'])->name('sub-kelas.export.excel');
+        Route::get('/{id}/edit', [SubKelasController::class, 'edit'])->name('sub_kelas.edit');
+        Route::put('/{id}', [SubKelasController::class, 'update'])->name('sub_kelas.update');
+        Route::delete('/{id}', [SubKelasController::class, 'destroy'])->name('sub_kelas.destroy');
+    });
 
+    Route::get('ustadzs/export-excel',[UstadzController::class, 'exportExcel'])->middleware('role:admin')->name('ustadzs.export.excel');
+    Route::resource('ustadzs', UstadzController::class)->middleware('role:admin');
+
+    Route::get('siswas/export-excel',[SiswaController::class, 'exportExcel'])->middleware('role:admin')->name('siswas.export.excel');
+    Route::get('siswas/import',[SiswaController::class, 'importForm'])->middleware('role:admin')->name('siswas.import.form');
+    Route::post('siswas/import/preview',[SiswaController::class, 'importPreview'])->middleware('role:admin')->name('siswas.import.preview');
+    Route::post('siswas/import/store',[SiswaController::class, 'importStore'])->middleware('role:admin')->name('siswas.import.store');
+    Route::resource('siswas', SiswaController::class)->middleware('role:admin');
+
+    // Route::get('get-ustadz/{subKelas}', [SiswaController::class, 'getUstadzBySubKelas'])->middleware('role:admin');
+    Route::get('/get-ustadz/{subKelas}', [SiswaController::class, 'getUstadz'])->middleware('role:admin')->name('get.ustadz');
     Route::get('sabaqs',[SabaqController::class, 'index'])->middleware('role:admin|ustadz')->name('sabaqs');
     Route::get('sabaq-history/{siswa_id}', [SabaqController::class, 'showSabaqHistory'])->middleware('role:admin|ustadz')->name('sabaq-history.show');
     // Route untuk mendapatkan data surat berdasarkan nomor surat (sura_no)
-    Route::get('get-surat-details/{sura_no}', [SabqiController::class, 'getSuratDetails'])->middleware('role:admin|ustadz')->name('get.surat.details');
+    Route::get('get-surat-details/{sura_no}', [SabaqController::class, 'getSuratDetails'])->middleware('role:admin|ustadz')->name('get.surat.details');
     Route::post('/sabaq/store', [SabaqController::class, 'store'])->middleware('role:admin|ustadz')->name('sabaq.store');
     Route::get('sabaq-history/{siswa_id}/edit/{id}', [SabaqController::class, 'edit'])->middleware('role:admin')->name('sabaq-history.edit');
     Route::post('sabaq-history/{siswa_id}/update/{id}', [SabaqController::class, 'update'])->middleware('role:admin')->name('sabaq-history.update');
     Route::delete('sabaq-history/{siswa_id}/{id}', [SabaqController::class, 'destroy'])->middleware('role:admin|ustadz')->name('sabaq-history.destroy');
+
     Route::get('sabaqs/sabaqsiswa', [SabaqController::class, 'showSiswaHistory'])->middleware('role:siswa')->name('sabaqs.sabaqsiswa');
     Route::get('sabaq/history/{id}/edit', [SabaqController::class, 'getHistory'])->middleware('role:admin|ustadz')->name('sabaq.history.edit');
     Route::put('/sabaq/history/{id}/update', [SabaqController::class, 'update'])->name('sabaq.history.update');
@@ -56,11 +96,15 @@ Route::middleware('auth')->group(function () {
 
     Route::get('sabqis',[SabqiController::class, 'index'])->middleware('role:admin|ustadz')->name('sabqis');
     Route::get('sabqi-history/{siswa_id}', [SabqiController::class, 'showSabqiHistory'])->middleware('role:admin|ustadz')->name('sabqi-history.show');
+    Route::get('get-surat-details/{sura_no}', [SabqiController::class, 'getSuratDetails'])->middleware('role:admin|ustadz')->name('get.surat.detailsforsabqi');
+    
     Route::post('/sabqi/store', [SabqiController::class, 'store'])->middleware('role:admin|ustadz')->name('sabqi.store');
-    Route::delete('sabqi-history/{siswa_id}/{id}', [SabqiController::class, 'destroy|ustadz'])->middleware('role:admin')->name('sabqi-history.destroy');
     Route::get('sabqis/sabqisiswa', [SabqiController::class, 'showSiswaHistory'])->middleware('role:siswa')->name('sabqis.sabqisiswa');
-    Route::get('/sabqis/history/{id}/edit', [SabqiController::class, 'edit'])->name('sabqis.history.edit');
-    Route::put('/sabqis/history/{id}/update', [SabqiController::class, 'update'])->name('sabqis.history.update');
+    Route::get('sabqi-history/{siswa_id}/edit/{id}', [SabqiController::class, 'edit'])->middleware('role:admin')->name('sabqi-history.edit');
+    
+    Route::put('/sabqi/history/{id}/update', [SabqiController::class, 'update'])->name('sabqis.history.update');
+    Route::delete('sabqi-history/{siswa_id}/{id}', [SabqiController::class, 'destroy'])->middleware('role:admin|ustadz')->name('sabqi-history.destroy');
+    Route::get('sabqi/history/{id}/edit', [SabqiController::class, 'getHistory'])->middleware('role:admin|ustadz')->name('sabqi.history.edit');
     Route::get('sabqis/laporan', [SabqiController::class, 'laporan'])->middleware('role:admin|ustadz')->name('sabqis.laporan');
     Route::get('sabqis/export', [SabqiController::class, 'exportToExcel'])->middleware('role:admin|ustadz')->name('sabqis.export');
 
@@ -68,6 +112,9 @@ Route::middleware('auth')->group(function () {
     Route::get('manzil-history/{siswa_id}', [ManzilController::class, 'showmanzilHistory'])->middleware('role:admin|ustadz')->name('manzil-history.show');
     Route::post('/manzil/store', [ManzilController::class, 'store'])->middleware('role:admin|ustadz')->name('manzil.store');
     Route::delete('manzil-history/{siswa_id}/{id}', [ManzilController::class, 'destroy'])->middleware('role:admin')->name('manzil-history.destroy');
+    Route::get('manzil/history/{id}/edit', [ManzilController::class, 'getHistory'])->middleware('role:admin|ustadz')->name('manzil.history.edit');
+    Route::put('/manzil/history/{id}/update', [ManzilController::class, 'update'])->name('manzils.history.update');
+
     Route::get('manzils/manzilsiswa', [ManzilController::class, 'showSiswaHistory'])->middleware('role:siswa')->name('manzils.manzilsiswa');
     Route::get('get-surat-manzil/{sura_no}', [ManzilController::class, 'getSuratmanzil'])->middleware('role:admin|ustadz')->name('get.surat.details');
     Route::get('manzils/history/{id}/edit', [ManzilController::class, 'edit'])->name('manzils.history.edit');
@@ -89,7 +136,7 @@ Route::middleware('auth')->group(function () {
     Route::get('absensis', [AbsensiSiswaController::class, 'index'])->middleware('role:admin|ustadz')->name('absensis');
     Route::get('absensis/create', [AbsensiSiswaController::class, 'create'])->middleware('role:admin|ustadz')->name('absensis.create');
     Route::post('absensis/store', [AbsensiSiswaController::class, 'store'])->middleware('role:admin|ustadz')->name('absensis.store');
-    Route::get('/get-siswa/{kelas_id}', [AbsensiSiswaController::class, 'getSiswaByKelas'])->middleware('role:admin|ustadz')->name('get-siswa.show');
+    Route::get('/get-siswa/{sub_kelas_id}', [AbsensiSiswaController::class, 'getSiswaBySubKelas'])->middleware('role:admin|ustadz')->name('get-siswa.show');
     Route::post('absensis/check-absensi', [AbsensiSiswaController::class, 'checkAbsensi'])->middleware('role:admin|ustadz')->name('check-absensi');
     Route::delete('absensis/{id}', [AbsensiSiswaController::class, 'destroy'])->middleware('role:admin|ustadz')->name('absensis.destroy');
     Route::get('absensis/ustadzIndex', [AbsensiSiswaController::class, 'ustadzIndex'])->middleware('role:admin|ustadz')->name('absensis.ustadzIndex');
@@ -126,6 +173,10 @@ Route::middleware('auth')->group(function () {
     Route::get('payouts/filter_bulanans', [PayoutController::class, 'filter_bulanans'])->middleware('role:admin')->name('payouts.filter_bulanans');
     Route::get('payouts/bayar_bulan/{payment}/{siswa}', [PayoutController::class, 'bayar_bulan'])->middleware('role:admin')->name('payouts.bayar_bulan');
     Route::put('payouts/updatebulanans', [PayoutController::class, 'updateBulanans'])->name('payouts.updatebulanans');
+    Route::get('payouts/invoice/{payment}/{bulan}', [PayoutController::class, 'invoice'])
+    ->middleware('role:admin')
+    ->name('payouts.invoice');
+
 
     Route::get('payoutsiswas', [PayoutsiswaController::class, 'index'])->middleware('role:siswa')->name('payoutsiswas.index');
     Route::get('payoutsiswas/filter_bulanans', [PayoutsiswaController::class, 'filter_bulanans'])

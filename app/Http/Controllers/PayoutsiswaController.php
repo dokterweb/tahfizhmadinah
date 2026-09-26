@@ -76,6 +76,59 @@ class PayoutsiswaController extends Controller
 
     public function bayarbulanan(Request $request)
     {
+        \Log::info('BayarBulanan called', $request->all());
+        
+        try {
+            $bulanan = Bulanan::findOrFail($request->id);
+        } catch (\Exception $e) {
+            \Log::error('Error finding Bulanan: ' . $e->getMessage());
+            return back()->with('error', 'Data not found');
+        }
+    
+        // set midtrans config
+        Config::$serverKey = config('midtrans.serverKey');
+        Config::$isProduction = config('midtrans.isProduction');
+        Config::$isSanitized = config('midtrans.isSanitized');
+        Config::$is3ds = config('midtrans.is3ds');
+    
+        // buat transaction details
+        $params = [
+            'transaction_details' => [
+                'order_id' => 'BULANAN-' . $bulanan->id . '-' . time(),
+                'gross_amount' => (int) $bulanan->bulan_bill,
+            ],
+            'customer_details' => [
+                'first_name' => $bulanan->siswa->user->name ?? 'Siswa',
+                'email' => $bulanan->siswa->user->email ?? 'noemail@test.com',
+                'phone' => $bulanan->siswa->no_hp ?? '080000000',
+            ],
+        ];
+    
+        // NON-AKTIFKAN SSL VERIFICATION SEMENTARA
+        Config::$curlOptions = [
+            CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_TIMEOUT => 30,
+        ];
+    
+        // generate snap token
+        try {
+            $snapToken = Snap::getSnapToken($params);
+            \Log::info('Snap token generated successfully');
+        } catch (\Exception $e) {
+            \Log::error('Midtrans Error: ' . $e->getMessage());
+            \Log::error('Midtrans Error Trace: ' . $e->getTraceAsString());
+            
+            // Tampilkan error lebih detail
+            return back()->with('error', 'Payment gateway error: ' . $e->getMessage());
+        }
+    
+        return view('payoutsiswas.pay', compact('bulanan', 'snapToken'));
+    }
+
+/* 
+    public function bayarbulanan(Request $request)
+    {
         // ambil data bulanan
         $bulanan = Bulanan::findOrFail($request->id);
 
@@ -102,7 +155,7 @@ class PayoutsiswaController extends Controller
         $snapToken = Snap::getSnapToken($params);
 
         return view('payoutsiswas.pay', compact('bulanan', 'snapToken'));
-    }
+    } */
 
      // dipanggil dari fetch() setelah pembayaran sukses
      public function updateStatus(Request $request)
@@ -115,7 +168,7 @@ class PayoutsiswaController extends Controller
          $bulanan = Bulanan::findOrFail($request->id);
  
          if ($request->status === 'paid') {
-             $bulanan->bulan_status     = 1; // sudah bayar
+             $bulanan->bulan_status     = '1'; // sudah bayar
              $bulanan->bulan_number_pay = $bulanan->bulan_bill;
              $bulanan->bulan_date_pay   = Carbon::now();
              $bulanan->save();

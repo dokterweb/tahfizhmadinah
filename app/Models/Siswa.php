@@ -10,16 +10,28 @@ class Siswa extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = ['user_id', 'kelas_id', 'ustadz_id', 'kelamin', 'tempat_lahir', 'tgl_lahir', 'alamat', 'nama_ayah', 'nama_ibu', 'no_hp'];
+    protected $fillable = ['user_id', 'sub_kelas_id', 'ustadz_id', 'kelamin', 'tempat_lahir', 'tgl_lahir', 'alamat', 'no_hp'];
 
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
 
+    public function subKelas()
+    {
+        return $this->belongsTo(SubKelas::class, 'sub_kelas_id', 'id');
+    }
+
     public function kelasnya()
     {
-        return $this->belongsTo(Kelasnya::class, 'kelas_id', 'id');
+        return $this->hasOneThrough(
+            Kelasnya::class,
+            SubKelas::class,
+            'id',
+            'id',
+            'sub_kelas_id',
+            'kelas_id'
+        );
     }
 
     public function ustadz()
@@ -27,60 +39,24 @@ class Siswa extends Model
         return $this->belongsTo(Ustadz::class, 'ustadz_id', 'id');
     }
 
-    public function sabaqs()
-    {
-        return $this->hasMany(Sabaq::class, 'siswa_id', 'id');
-    }
-
-    public function sabqis()
-    {
-        return $this->hasMany(Sabqi::class, 'siswa_id', 'id');
-    }
-
-    public function manzils()
-    {
-        return $this->hasMany(Manzil::class, 'siswa_id', 'id');
-    }
-
     public function iqros()
     {
         return $this->hasMany(iqro::class, 'siswa_id', 'id');
     }
 
-    public function sabaqHistories()
+   public function sabaqHistories()
     {
-        return $this->hasManyThrough(
-            Sabaq_history::class,
-            Sabaq::class,
-            'siswa_id',      // Foreign key di tabel Sabaq (tabel perantara)
-            'sabaq_id',      // Foreign key di tabel SabaqHistory
-            'id',            // Local key di model Siswa
-            'id'             // Local key di model Sabaq
-        );
+        return $this->hasMany(Sabaq_history::class,'siswa_id','id');
     }
 
     public function sabqiHistories()
     {
-        return $this->hasManyThrough(
-            Sabqi_history::class,
-            Sabqi::class,
-            'siswa_id',
-            'sabqi_id',
-            'id',
-            'id'
-        );
+        return $this->hasMany(Sabqi_history::class,'siswa_id','id');
     }
 
     public function manzilHistories()
     {
-        return $this->hasManyThrough(
-            Manzil_history::class,
-            Manzil::class,
-            'siswa_id',
-            'manzil_id',
-            'id',
-            'id'
-        );
+        return $this->hasMany(Manzil_history::class,'siswa_id','id');
     }
 
     public function iqroHistories()
